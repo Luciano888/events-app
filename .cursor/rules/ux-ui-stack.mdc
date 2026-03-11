@@ -1,0 +1,28 @@
+---
+description: UX/UI stack and conventions for Events App (MUI, Leaflet, feedback)
+alwaysApply: true
+---
+
+# UX/UI Stack and Conventions
+
+## Libraries
+
+- **UI components and theme:** Material UI (MUI) — `@mui/material`, `@mui/icons-material`. Use ThemeProvider, Box, Typography, Button, TextField, Select, Card, etc.
+- **Maps:** Leaflet + react-leaflet (existing). Use for list map and for location picker when creating/editing events.
+- **Address autocomplete:** Photon (Komoot) — free, no API key. Use `photon.komoot.io` API for search-as-you-type address suggestions. Service: `src/services/photonService.ts`; component: `AddressAutocomplete`. Debounce requests (~400 ms) for fair use.
+- **Feedback:** MUI Snackbar + Alert for success/error messages (e.g. after creating an event).
+- **Icons:** Prefer `@mui/icons-material` (Search, Map, Add, etc.).
+- **Forms:** Use MUI TextField, Select, and optionally React Hook Form + Zod for validation.
+- **Loading:** MUI Skeleton for list placeholders; CircularProgress for buttons or full-page when appropriate.
+- **Animations:** Use MUI transitions (e.g. Modal, Drawer). Add Framer Motion only if needed for list/detail transitions.
+
+## Conventions
+
+- All UI text, labels, and comments in **English**. Follow OOP where applicable.
+- Prefer MUI `sx` or `styled()` for component-level styles; avoid raw inline styles for layout/theme.
+- Use MUI spacing and breakpoints (theme.spacing, theme.breakpoints) for responsive layout.
+- For event list: provide search (by name), filters (event type, date range), and sort (date, distance, type).
+- Event detail: dedicated page or dialog with Card, Typography, and a small Leaflet map with one marker.
+- Create Event: form with MUI components; location via AddressAutocomplete (Photon) and LocationPicker (Leaflet map with draggable marker). User types address and selects from suggestions to set coordinates, or picks on the map.
+- Error states: show Alert plus a "Retry" button that re-runs the failed action.
+- After creating an event: show success Snackbar then navigate to list or event detail.
