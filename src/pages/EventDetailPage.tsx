@@ -507,7 +507,6 @@ export function EventDetailPage() {
           p: 2,
         }}
         BackdropProps={{ sx: { bgcolor: 'rgba(0,0,0,0.92)', zIndex: 9998 } }}
-        slotProps={{ root: { sx: { zIndex: 9999 } } }}
       >
         <Box
             onClick={() => {
