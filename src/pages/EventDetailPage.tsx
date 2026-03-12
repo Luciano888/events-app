@@ -43,6 +43,7 @@ import { Event } from '../models/Event';
 import { EVENT_TYPE_LABELS, VISIBILITY_LABELS } from '../models/enums';
 import { useAuth } from '../hooks/useAuth';
 import { useEventAttendance } from '../hooks/useEventAttendance';
+import { useResolvedLocation } from '../hooks/useResolvedLocation';
 import { getAttendeeUserIds } from '../services/attendanceService';
 import { getProfilesByIds } from '../services/profileService';
 import { useEventPosts } from '../hooks/useEventPosts';
@@ -93,6 +94,7 @@ export function EventDetailPage() {
   const [lightboxMediumFailed, setLightboxMediumFailed] = useState(false);
 
   const { count, isGoing, loading: attendanceLoading, updating, setGoing, attendanceError, clearError } = useEventAttendance(id ?? undefined, user?.id ?? null);
+  const locationLabel = useResolvedLocation(event?.latitude ?? 0, event?.longitude ?? 0, event?.address);
 
   const isCreator = useMemo(() => event && user && event.userId === user.id, [event, user]);
   const canAccessWallAndChat = isGoing || isCreator;
@@ -118,21 +120,26 @@ export function EventDetailPage() {
     const fromMessages = messages.map((m) => m.user_id);
     return [...new Set([...fromPosts, ...fromMessages])];
   }, [posts, messages]);
+  const profileIds = useMemo(() => {
+    const ids = new Set(authorIds);
+    if (event?.userId) ids.add(event.userId);
+    return Array.from(ids);
+  }, [authorIds, event?.userId]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
-    if (authorIds.length === 0) {
+    if (profileIds.length === 0) {
       setProfiles({});
       return;
     }
-    getProfilesByIds(authorIds)
+    getProfilesByIds(profileIds)
       .then((list) => {
         const map: Record<string, Profile> = {};
         list.forEach((p) => { map[p.id] = p; });
         setProfiles(map);
       })
       .catch(() => setProfiles({}));
-  }, [authorIds.join(',')]);
+  }, [profileIds.join(',')]);
 
   useEffect(() => {
     if (!id || !isCreator) {
@@ -252,6 +259,16 @@ export function EventDetailPage() {
 
   const infoPanel = (
     <>
+      {event.coverCloudinaryPublicId && (
+        <Box sx={{ width: '100%', overflow: 'hidden', borderRadius: 1, mb: 2 }}>
+          <Box
+            component="img"
+            src={buildImageUrl(event.coverCloudinaryPublicId)}
+            alt=""
+            sx={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </Box>
+      )}
       <Card variant="outlined" sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>{event.name}</Typography>
@@ -263,7 +280,26 @@ export function EventDetailPage() {
             )}
           </Box>
           <Typography variant="body2" color="text.secondary">Date & time: {event.getDisplayDate()}</Typography>
-          <Typography variant="body2" color="text.secondary">Location: {event.latitude.toFixed(4)}, {event.longitude.toFixed(4)}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Location: {locationLabel}
+          </Typography>
+          {event.description && (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>About</Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{event.description}</Typography>
+            </Box>
+          )}
+          {event.userId && (
+            <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary">Organized by</Typography>
+              <Box component={Link} to={`/profile/${event.userId}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'inherit', textDecoration: 'none' }}>
+                <Avatar src={profiles[event.userId]?.avatar_url ?? undefined} sx={{ width: 24, height: 24 }}>
+                  {(profiles[event.userId]?.display_name ?? event.userId)?.[0]?.toUpperCase() ?? '?'}
+                </Avatar>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>{profiles[event.userId]?.display_name ?? 'User'}</Typography>
+              </Box>
+            </Box>
+          )}
 
           <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}>
             <Button variant="outlined" size="small" startIcon={<ShareIcon />} onClick={handleShare}>Share</Button>

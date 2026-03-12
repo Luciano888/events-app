@@ -22,6 +22,9 @@ export interface EventRow {
   user_id: string;
   latitude: number;
   longitude: number;
+  description?: string | null;
+  cover_cloudinary_public_id?: string | null;
+  address?: string | null;
   created_at?: string;
 }
 
@@ -35,6 +38,9 @@ export interface CreateEventInput {
   visibility: Visibility;
   latitude: number;
   longitude: number;
+  description?: string | null;
+  cover_cloudinary_public_id?: string | null;
+  address?: string | null;
 }
 
 /**
@@ -73,6 +79,18 @@ export class Event {
 
   get longitude(): number {
     return this.row.longitude;
+  }
+
+  get description(): string | null | undefined {
+    return this.row.description;
+  }
+
+  get coverCloudinaryPublicId(): string | null | undefined {
+    return this.row.cover_cloudinary_public_id;
+  }
+
+  get address(): string | null | undefined {
+    return this.row.address;
   }
 
   get createdAt(): string | undefined {

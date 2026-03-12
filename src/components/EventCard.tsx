@@ -21,6 +21,8 @@ import { Event } from '../models/Event';
 import { EVENT_TYPE_LABELS, Visibility } from '../models/enums';
 import { getAttendeeUserIds } from '../services/attendanceService';
 import { getProfilesByIds } from '../services/profileService';
+import { buildImageUrl } from '../lib/cloudinary';
+import { useResolvedLocation } from '../hooks/useResolvedLocation';
 import type { Profile } from '../models/Profile';
 
 interface EventCardProps {
@@ -28,9 +30,11 @@ interface EventCardProps {
   attendanceCount?: number;
   /** If provided, attendee list is shown when event is public or user is creator. */
   currentUserId?: string | null;
+  /** Creator profile for "who published" header. */
+  creatorProfile?: Profile | null;
 }
 
-export function EventCard({ event, attendanceCount = 0, currentUserId }: EventCardProps) {
+export function EventCard({ event, attendanceCount = 0, currentUserId, creatorProfile }: EventCardProps) {
   const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? event.eventType;
   const [expanded, setExpanded] = useState(false);
   const [attendees, setAttendees] = useState<Profile[] | null>(null);
@@ -61,23 +65,85 @@ export function EventCard({ event, attendanceCount = 0, currentUserId }: EventCa
     setExpanded((prev) => !prev);
   };
 
+  const locationLabel = useResolvedLocation(event.latitude, event.longitude, event.address);
+  const creatorName = creatorProfile?.display_name ?? 'User';
+  const coverPublicId = event.coverCloudinaryPublicId;
+  // TODO: improve – optimize list cover (e.g. fixed width for layout, fallback if original fails to load)
+  const coverSrc = coverPublicId ? buildImageUrl(coverPublicId) : '';
+
   return (
-    <Card variant="outlined">
-      <CardContent>
+    <Card
+      variant="outlined"
+      sx={{
+        overflow: 'hidden',
+        borderRadius: 2,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+      }}
+    >
+      <CardContent sx={{ pb: 0, '&:last-child': { pb: 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <Avatar
+            component={Link}
+            to={`/profile/${event.userId}`}
+            src={creatorProfile?.avatar_url ?? undefined}
+            sx={{ width: 40, height: 40, textDecoration: 'none' }}
+          >
+            {(creatorName ?? event.userId)?.[0]?.toUpperCase() ?? '?'}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              component={Link}
+              to={`/profile/${event.userId}`}
+              variant="subtitle2"
+              fontWeight={600}
+              sx={{ display: 'block', color: 'inherit', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+            >
+              {creatorName}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Event
+            </Typography>
+          </Box>
+        </Box>
+
         <Typography
           variant="h6"
           component={Link}
           to={`/event/${event.id}`}
           gutterBottom
-          sx={{ display: 'block', color: 'inherit', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+          sx={{
+            display: 'block',
+            color: 'inherit',
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: '1.15rem',
+            '&:hover': { textDecoration: 'underline' },
+          }}
         >
           {event.name}
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {event.getDisplayDate()} · {typeLabel}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}>
-          <Chip size="small" label={`${event.latitude.toFixed(4)}, ${event.longitude.toFixed(4)}`} variant="outlined" />
+      </CardContent>
+      {coverSrc && (
+        <Box
+          component={Link}
+          to={`/event/${event.id}`}
+          sx={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
+        >
+          <Box
+            component="img"
+            src={coverSrc}
+            alt=""
+            loading="lazy"
+            sx={{ width: '100%', height: 'auto', display: 'block', verticalAlign: 'middle' }}
+          />
+        </Box>
+      )}
+      <CardContent sx={{ pt: 1.5, pb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Chip size="small" label={locationLabel} variant="outlined" sx={{ maxWidth: '100%' }} />
           {(attendanceCount ?? 0) > 0 && (
             <Chip
               size="small"

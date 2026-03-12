@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { Layout } from './components/Layout';
-import { HomePage } from './pages/HomePage';
-import { MapPage } from './pages/MapPage';
+import { EventsPage } from './pages/EventsPage';
 import { CreateEventPage } from './pages/CreateEventPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { MyProfilePage } from './pages/MyProfilePage';
@@ -24,9 +23,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
+          <Route index element={<EventsPage />} />
           <Route path="event/:id" element={<EventDetailPage />} />
-          <Route path="map" element={<MapPage />} />
+          <Route path="map" element={<Navigate to="/?view=map" replace />} />
           <Route
             path="create"
             element={

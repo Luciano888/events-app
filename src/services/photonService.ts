@@ -76,3 +76,31 @@ export async function fetchPhotonSuggestions(query: string, limit = 6): Promise<
     };
   });
 }
+
+const reverseCache = new Map<string, string>();
+
+/**
+ * Reverse geocode: get a display address from coordinates. Results are cached per rounded coords.
+ * Use when event has no stored address so we show a readable location like on the home list.
+ */
+export async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  const cached = reverseCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const url = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: controller.signal,
+  });
+  clearTimeout(timeoutId);
+  if (!res.ok) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+  const data = (await res.json()) as { features?: PhotonFeature[] };
+  const features = data.features ?? [];
+  const display = features.length > 0 ? buildDisplayName(features[0]) : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  reverseCache.set(key, display);
+  return display;
+}
