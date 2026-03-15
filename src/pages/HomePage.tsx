@@ -26,6 +26,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { EventType, EVENT_TYPE_LABELS } from '../models/enums';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { distanceKm } from '../utils/distance';
+import { groupUpcomingByTime } from '../utils/upcomingBuckets';
 import type { Profile } from '../models/Profile';
 
 type SortOption = 'date_asc' | 'date_desc' | 'distance' | 'type';
@@ -63,6 +64,11 @@ export function HomePage() {
     }
     return list;
   }, [events, search, filterType, sort, timeFilter, userLat, userLng]);
+
+  const upcomingBuckets = useMemo(
+    () => (timeFilter === 'upcoming' ? groupUpcomingByTime(filteredAndSorted) : null),
+    [timeFilter, filteredAndSorted]
+  );
 
   const eventIds = useMemo(() => filteredAndSorted.map((e) => e.id), [filteredAndSorted]);
   const attendanceCounts = useAttendanceCounts(eventIds);
@@ -166,6 +172,35 @@ export function HomePage() {
 
       {filteredAndSorted.length === 0 ? (
         <Typography color="text.secondary" textAlign="center" py={4}>{emptyMessage}</Typography>
+      ) : upcomingBuckets ? (
+        <Stack spacing={3}>
+          {[
+            { key: 'today', title: 'Today', events: upcomingBuckets.today },
+            { key: 'thisWeek', title: 'This week', events: upcomingBuckets.thisWeek },
+            { key: 'thisMonth', title: 'This month', events: upcomingBuckets.thisMonth },
+            { key: 'thisYear', title: 'This year', events: upcomingBuckets.thisYear },
+          ].map(
+            ({ key, title, events: sectionEvents }) =>
+              sectionEvents.length > 0 && (
+                <Box key={key}>
+                  <Typography variant="subtitle1" fontWeight={600} color="text.secondary" sx={{ mb: 1 }}>
+                    {title}
+                  </Typography>
+                  <Stack spacing={2}>
+                    {sectionEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        attendanceCount={attendanceCounts[event.id]}
+                        currentUserId={user?.id ?? null}
+                        creatorProfile={creatorProfiles[event.userId]}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )
+          )}
+        </Stack>
       ) : (
         <Stack spacing={2}>
           {filteredAndSorted.map((event) => (

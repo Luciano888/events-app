@@ -102,8 +102,11 @@ export class Event {
     return { latitude: this.row.latitude, longitude: this.row.longitude };
   }
 
-  /** Parses date_time for display. */
+  /** Parses date_time for display (e.g. "March 15, 2026, 10:00 PM"). */
   getDisplayDate(): string {
-    return new Date(this.row.date_time).toLocaleString();
+    const d = new Date(this.row.date_time);
+    const dateStr = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    return `${dateStr}, ${timeStr}`;
   }
 }

@@ -23,6 +23,7 @@ import { getAttendeeUserIds } from '../services/attendanceService';
 import { getProfilesByIds } from '../services/profileService';
 import { buildImageUrl } from '../lib/cloudinary';
 import { useResolvedLocation } from '../hooks/useResolvedLocation';
+import { shortAddress } from '../utils/locationDisplay';
 import type { Profile } from '../models/Profile';
 
 interface EventCardProps {
@@ -143,7 +144,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
       )}
       <CardContent sx={{ pt: 1.5, pb: 2 }}>
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Chip size="small" label={locationLabel} variant="outlined" sx={{ maxWidth: '100%' }} />
+          <Chip size="small" label={shortAddress(locationLabel)} variant="outlined" sx={{ maxWidth: '100%' }} />
           {(attendanceCount ?? 0) > 0 && (
             <Chip
               size="small"

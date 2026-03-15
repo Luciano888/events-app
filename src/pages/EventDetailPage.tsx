@@ -40,7 +40,8 @@ import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import CloseIcon from '@mui/icons-material/Close';
 import { fetchEventById } from '../services/eventService';
 import { Event } from '../models/Event';
-import { EVENT_TYPE_LABELS, VISIBILITY_LABELS } from '../models/enums';
+import { EVENT_TYPE_LABELS, VISIBILITY_LABELS, Visibility } from '../models/enums';
+import { shortAddress } from '../utils/locationDisplay';
 import { useAuth } from '../hooks/useAuth';
 import { useEventAttendance } from '../hooks/useEventAttendance';
 import { useResolvedLocation } from '../hooks/useResolvedLocation';
@@ -141,8 +142,10 @@ export function EventDetailPage() {
       .catch(() => setProfiles({}));
   }, [profileIds.join(',')]);
 
+  const canShowAttendees = event && (event.visibility === Visibility.Public || isCreator || isGoing) && (count ?? 0) > 0;
+
   useEffect(() => {
-    if (!id || !isCreator) {
+    if (!id || !canShowAttendees) {
       setAttendees([]);
       return;
     }
@@ -152,7 +155,7 @@ export function EventDetailPage() {
       .then(setAttendees)
       .catch(() => setAttendees([]))
       .finally(() => setAttendeesLoading(false));
-  }, [id, isCreator]);
+  }, [id, canShowAttendees]);
 
   useEffect(() => {
     if (!id) return;
@@ -281,7 +284,7 @@ export function EventDetailPage() {
           </Box>
           <Typography variant="body2" color="text.secondary">Date & time: {event.getDisplayDate()}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Location: {locationLabel}
+            Location: {shortAddress(locationLabel)}
           </Typography>
           {event.description && (
             <Box sx={{ mt: 1.5 }}>
@@ -307,9 +310,9 @@ export function EventDetailPage() {
             <Button variant="outlined" size="small" startIcon={<DirectionsIcon />} href={buildMapsDirectionsUrl(event.latitude, event.longitude)} target="_blank" rel="noopener noreferrer">Get directions</Button>
           </Stack>
 
-          {isCreator && (
+          {canShowAttendees && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>Attendees (only you see this list)</Typography>
+              <Typography variant="subtitle2" gutterBottom>Who&apos;s going</Typography>
               {attendeesLoading ? (
                 <Skeleton variant="rounded" height={40} />
               ) : attendees.length === 0 ? (
