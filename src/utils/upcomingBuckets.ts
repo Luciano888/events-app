@@ -21,7 +21,7 @@ function endOfDay(d: Date): number {
  */
 export function groupUpcomingByTime(events: Event[]): UpcomingBuckets {
   const now = new Date();
-  const nowTime = now.getTime();
+
   const startToday = startOfDay(now);
   const endToday = endOfDay(now);
   const endOfSevenDays = endOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7));
