@@ -78,6 +78,7 @@ export async function createEvent(
       longitude: input.longitude,
       description: input.description ?? null,
       cover_cloudinary_public_id: input.cover_cloudinary_public_id ?? null,
+      cover_aspect_ratio: input.cover_aspect_ratio ?? null,
       address: input.address ?? null,
     })
     .select()

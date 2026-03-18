@@ -39,7 +39,7 @@ import SendIcon from '@mui/icons-material/Send';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import CloseIcon from '@mui/icons-material/Close';
 import { fetchEventById } from '../services/eventService';
-import { Event } from '../models/Event';
+import { Event, getCoverAspectRatioCss } from '../models/Event';
 import { EVENT_TYPE_LABELS, VISIBILITY_LABELS, Visibility } from '../models/enums';
 import { shortAddress } from '../utils/locationDisplay';
 import { useAuth } from '../hooks/useAuth';
@@ -263,12 +263,32 @@ export function EventDetailPage() {
   const infoPanel = (
     <>
       {event.coverCloudinaryPublicId && (
-        <Box sx={{ width: '100%', overflow: 'hidden', borderRadius: 1, mb: 2 }}>
+        <Box
+          sx={{
+            width: '100%',
+            aspectRatio: getCoverAspectRatioCss(event.coverAspectRatio ?? '1:1'),
+            maxHeight: 400,
+            overflow: 'hidden',
+            borderRadius: 1,
+            mb: 2,
+            position: 'relative',
+            backgroundColor: 'action.hover',
+          }}
+        >
           <Box
             component="img"
             src={buildImageUrl(event.coverCloudinaryPublicId)}
             alt=""
-            sx={{ width: '100%', height: 'auto', display: 'block' }}
+            sx={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: '50% 50%',
+              display: 'block',
+            }}
           />
         </Box>
       )}

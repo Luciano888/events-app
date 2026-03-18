@@ -24,6 +24,7 @@ import { getProfilesByIds } from '../services/profileService';
 import { buildImageUrl } from '../lib/cloudinary';
 import { useResolvedLocation } from '../hooks/useResolvedLocation';
 import { shortAddress } from '../utils/locationDisplay';
+import { getCoverAspectRatioCss } from '../models/Event';
 import type { Profile } from '../models/Profile';
 
 interface EventCardProps {
@@ -69,7 +70,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
   const locationLabel = useResolvedLocation(event.latitude, event.longitude, event.address);
   const creatorName = creatorProfile?.display_name ?? 'User';
   const coverPublicId = event.coverCloudinaryPublicId;
-  // TODO: improve – optimize list cover (e.g. fixed width for layout, fallback if original fails to load)
+  const coverAspectCss = getCoverAspectRatioCss(event.coverAspectRatio ?? '1:1');
   const coverSrc = coverPublicId ? buildImageUrl(coverPublicId) : '';
 
   return (
@@ -134,12 +135,31 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
           sx={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
         >
           <Box
-            component="img"
-            src={coverSrc}
-            alt=""
-            loading="lazy"
-            sx={{ width: '100%', height: 'auto', display: 'block', verticalAlign: 'middle' }}
-          />
+            sx={{
+              width: '100%',
+              aspectRatio: coverAspectCss,
+              overflow: 'hidden',
+              position: 'relative',
+              backgroundColor: 'action.hover',
+            }}
+          >
+            <Box
+              component="img"
+              src={coverSrc}
+              alt=""
+              loading="lazy"
+              sx={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: '50% 50%',
+                display: 'block',
+              }}
+            />
+          </Box>
         </Box>
       )}
       <CardContent sx={{ pt: 1.5, pb: 2 }}>

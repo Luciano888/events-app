@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -21,7 +21,9 @@ import { createEvent } from '../services/eventService';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { LocationPicker } from '../components/LocationPicker';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
+import { FocalPointEditor, type FocalPoint, type CoverAspectRatio } from '../components/FocalPointEditor';
 import { uploadImage, isUploadConfigured } from '../services/cloudinaryService';
+import { COVER_ASPECT_RATIOS } from '../models/Event';
 import { EventType, Visibility, EVENT_TYPE_LABELS, VISIBILITY_LABELS } from '../models/enums';
 
 export function CreateEventPage() {
@@ -37,8 +39,21 @@ export function CreateEventPage() {
   const [longitude, setLongitude] = useState(0);
   const [description, setDescription] = useState('');
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [coverPosition, setCoverPosition] = useState<FocalPoint>({ x: 50, y: 50 });
+  const [coverAspectRatio, setCoverAspectRatio] = useState<CoverAspectRatio>('1:1');
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(coverFile);
+    setCoverPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -66,6 +81,7 @@ export function CreateEventPage() {
           longitude,
           description: description.trim() || null,
           cover_cloudinary_public_id: coverPublicId,
+          cover_aspect_ratio: coverPublicId ? coverAspectRatio : null,
           address: address.trim() || null,
         },
         user.id
@@ -120,20 +136,42 @@ export function CreateEventPage() {
                   accept="image/*"
                   ref={coverInputRef}
                   style={{ display: 'none' }}
-                  onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setCoverFile(file);
+                  if (file) setCoverPosition({ x: 50, y: 50 });
+                }}
                 />
-                {coverFile ? (
-                  <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                    <Box
-                      component="img"
-                      src={URL.createObjectURL(coverFile)}
-                      alt="Cover preview"
-                      sx={{ maxWidth: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 1, display: 'block' }}
+                {coverFile && coverPreviewUrl ? (
+                  <Box sx={{ position: 'relative', width: '100%' }}>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                      {COVER_ASPECT_RATIOS.map((ratio) => (
+                        <Button
+                          key={ratio}
+                          size="small"
+                          variant={coverAspectRatio === ratio ? 'contained' : 'outlined'}
+                          onClick={() => setCoverAspectRatio(ratio)}
+                          sx={{ minWidth: 56 }}
+                        >
+                          {ratio}
+                        </Button>
+                      ))}
+                    </Box>
+                    <FocalPointEditor
+                      src={coverPreviewUrl}
+                      position={coverPosition}
+                      onChange={setCoverPosition}
+                      aspectRatio={coverAspectRatio}
+                      draggable
+                      sx={{ width: '100%' }}
                     />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      Drag the image to adjust how it’s cropped in the card.
+                    </Typography>
                     <IconButton
                       size="small"
                       onClick={() => setCoverFile(null)}
-                      sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
+                      sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.6)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
                     >
                       <DeleteOutlineIcon fontSize="small" />
                     </IconButton>

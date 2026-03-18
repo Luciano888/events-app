@@ -9,6 +9,22 @@ export interface GeolocationData {
   longitude: number;
 }
 
+/** Supported cover crop aspect ratios (Instagram-style). */
+export type CoverAspectRatio = '1:1' | '4:5' | '3:4';
+
+export const COVER_ASPECT_RATIOS: CoverAspectRatio[] = ['1:1', '4:5', '3:4'];
+
+/** CSS aspect-ratio value for a given CoverAspectRatio. */
+export function getCoverAspectRatioCss(ratio: CoverAspectRatio | null | undefined): string {
+  if (!ratio) return '1'; // default square
+  switch (ratio) {
+    case '1:1': return '1';
+    case '4:5': return '4 / 5';
+    case '3:4': return '3 / 4';
+    default: return '1';
+  }
+}
+
 /**
  * Event entity. Matches the Supabase `events` table.
  * All code and documentation in English (OOP model).
@@ -24,6 +40,7 @@ export interface EventRow {
   longitude: number;
   description?: string | null;
   cover_cloudinary_public_id?: string | null;
+  cover_aspect_ratio?: string | null;
   address?: string | null;
   created_at?: string;
 }
@@ -40,6 +57,7 @@ export interface CreateEventInput {
   longitude: number;
   description?: string | null;
   cover_cloudinary_public_id?: string | null;
+  cover_aspect_ratio?: CoverAspectRatio | null;
   address?: string | null;
 }
 
@@ -87,6 +105,12 @@ export class Event {
 
   get coverCloudinaryPublicId(): string | null | undefined {
     return this.row.cover_cloudinary_public_id;
+  }
+
+  get coverAspectRatio(): CoverAspectRatio | null | undefined {
+    const r = this.row.cover_aspect_ratio;
+    if (r === '1:1' || r === '4:5' || r === '3:4') return r;
+    return undefined;
   }
 
   get address(): string | null | undefined {
