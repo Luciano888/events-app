@@ -3,10 +3,10 @@ import { Box, Typography, Alert, Button, Skeleton } from '@mui/material';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useTranslation } from 'react-i18next';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { fetchEventsForMap } from '../services/eventService';
 import { Event } from '../models/Event';
-import { EVENT_TYPE_LABELS } from '../models/enums';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 function CenterMap({ lat, lng }: { lat: number; lng: number }) {
@@ -26,6 +26,7 @@ const defaultIcon = L.icon({
 });
 
 export function MapPage() {
+  const { t, i18n } = useTranslation();
   const { latitude, longitude, error: geoError } = useGeolocation();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export function MapPage() {
     }
     fetchEventsForMap()
       .then(setEvents)
-      .catch((e) => setError(e.message ?? 'Failed to load events'))
+      .catch((e) => setError(e.message ?? t('events.failedToLoadEvents')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -48,8 +49,8 @@ export function MapPage() {
   if (!isSupabaseConfigured) {
     return (
       <Box>
-        <Typography variant="h5" gutterBottom>Map</Typography>
-        <Typography color="text.secondary">Configure Supabase in <code>.env</code> to see events on the map.</Typography>
+        <Typography variant="h5" gutterBottom>{t('events.map')}</Typography>
+        <Typography color="text.secondary">{t('events.configureMapSupabase')}</Typography>
       </Box>
     );
   }
@@ -57,9 +58,9 @@ export function MapPage() {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Map</Typography>
-      {geoError && <Alert severity="warning" sx={{ mb: 1 }}>Location: {geoError}. Showing default center.</Alert>}
-      {error && <Alert severity="error" action={<Button size="small" onClick={() => window.location.reload()}>Retry</Button>} sx={{ mb: 1 }}>{error}</Alert>}
+      <Typography variant="h5" gutterBottom>{t('events.map')}</Typography>
+      {geoError && <Alert severity="warning" sx={{ mb: 1 }}>{t('events.locationWarning', { error: geoError })}</Alert>}
+      {error && <Alert severity="error" action={<Button size="small" onClick={() => window.location.reload()}>{t('events.retry')}</Button>} sx={{ mb: 1 }}>{error}</Alert>}
       <Box sx={{ height: 400, width: '100%', borderRadius: 1, overflow: 'hidden' }}>
         <MapContainer center={[centerLat, centerLng]} zoom={12} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
           <CenterMap lat={latitude} lng={longitude} />
@@ -68,8 +69,8 @@ export function MapPage() {
             <Marker key={event.id} position={[event.latitude, event.longitude]} icon={defaultIcon}>
               <Popup>
                 <strong>{event.name}</strong><br />
-                {event.getDisplayDate()}<br />
-                {EVENT_TYPE_LABELS[event.eventType] ?? event.eventType}
+                {event.getDisplayDate(i18n.language)}<br />
+                {t(`enums.eventType.${event.eventType}`)}
               </Popup>
             </Marker>
           ))}

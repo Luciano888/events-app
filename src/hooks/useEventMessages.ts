@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getEventMessages,
   sendEventMessage,
+  sendEventMessageWithImage,
   subscribeEventMessages,
   isChatOpen,
 } from '../services/eventMessageService';
@@ -46,12 +47,23 @@ export function useEventMessages(eventId: string | null, eventDateTime: string |
   }, [eventId]);
 
   const send = useCallback(
-    async (body: string) => {
-      if (!eventId || !userId || !body.trim()) return;
+    async (body: string, options?: { imageCloudinaryPublicId?: string; imageThumbnailUrl?: string | null }) => {
+      if (!eventId || !userId) return;
+      const trimmed = body.trim();
+      const hasImage = !!options?.imageCloudinaryPublicId;
+      if (!trimmed && !hasImage) return;
       setSending(true);
       setError(null);
       try {
-        const newMsg = await sendEventMessage(eventId, userId, body);
+        const newMsg = hasImage
+          ? await sendEventMessageWithImage(
+            eventId,
+            userId,
+            trimmed,
+            options.imageCloudinaryPublicId as string,
+            options.imageThumbnailUrl ?? null
+          )
+          : await sendEventMessage(eventId, userId, trimmed);
         setMessages((prev) => [...prev, newMsg]);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to send');

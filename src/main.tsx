@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './theme';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import App from './App';
+import './i18n';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

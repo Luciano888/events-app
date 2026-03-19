@@ -5,6 +5,8 @@ export interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  avatar_position_x?: number | null;
+  avatar_position_y?: number | null;
   bio: string | null;
   created_at?: string;
   updated_at?: string;
@@ -13,5 +15,7 @@ export interface Profile {
 export interface ProfileUpdate {
   display_name?: string | null;
   avatar_url?: string | null;
+  avatar_position_x?: number | null;
+  avatar_position_y?: number | null;
   bio?: string | null;
 }

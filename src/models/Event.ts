@@ -127,10 +127,10 @@ export class Event {
   }
 
   /** Parses date_time for display (e.g. "March 15, 2026, 10:00 PM"). */
-  getDisplayDate(): string {
+  getDisplayDate(locale?: string): string {
     const d = new Date(this.row.date_time);
-    const dateStr = d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-    const timeStr = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const dateStr = d.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
     return `${dateStr}, ${timeStr}`;
   }
 }

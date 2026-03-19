@@ -15,6 +15,7 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
@@ -23,8 +24,10 @@ import { sendFriendRequest } from '../services/friendService';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { EventCard } from '../components/EventCard';
 import { useAttendanceCounts } from '../hooks/useAttendanceCounts';
+import { getAvatarObjectPosition } from '../utils/avatarPosition';
 
 export function ProfilePage() {
+  const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -45,16 +48,16 @@ export function ProfilePage() {
     try {
       await sendFriendRequest(user.id, userId);
       setStatusOverride('pending_sent');
-      showMessage('Connection request sent', 'success');
+      showMessage(t('profile.requestSentToast'), 'success');
     } catch (err: unknown) {
-      showMessage(err instanceof Error ? err.message : 'Failed to send request', 'error');
+      showMessage(err instanceof Error ? err.message : t('profile.requestSendFailed'), 'error');
     } finally {
       setSendingRequest(false);
     }
   }
 
   if (!userId) {
-    return <Typography>Invalid profile.</Typography>;
+    return <Typography>{t('profile.invalidProfile')}</Typography>;
   }
 
   const isOwnProfile = user?.id === userId;
@@ -62,7 +65,7 @@ export function ProfilePage() {
   if (profileLoading && !profile) {
     return (
       <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Back</Button>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>{t('events.back')}</Button>
         <Skeleton variant="rounded" height={200} />
       </Box>
     );
@@ -70,22 +73,22 @@ export function ProfilePage() {
   if (profileError || !profile) {
     return (
       <Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Back</Button>
-        <Alert severity="error">{profileError ?? 'Profile not found.'}</Alert>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>{t('events.back')}</Button>
+        <Alert severity="error">{profileError ?? t('profile.profileNotFound')}</Alert>
       </Box>
     );
   }
 
-  const displayName = profile.display_name?.trim() || 'User';
+  const displayName = profile.display_name?.trim() || t('friends.user');
   const canConnect = user && !isOwnProfile && effectiveStatus === 'none';
 
   return (
     <Box>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>Back</Button>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>{t('events.back')}</Button>
       <Card variant="outlined" sx={{ mb: 2 }}>
         <CardContent>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-            <Avatar src={profile.avatar_url ?? undefined} sx={{ width: 80, height: 80 }}>
+            <Avatar src={profile.avatar_url ?? undefined} sx={{ width: 80, height: 80, '& .MuiAvatar-img': { objectPosition: getAvatarObjectPosition(profile) } }}>
               {displayName[0]?.toUpperCase() ?? '?'}
             </Avatar>
             <Box sx={{ flex: 1 }}>
@@ -97,23 +100,23 @@ export function ProfilePage() {
               )}
               {!connLoading && friendsCount != null && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {friendsCount} connected
+                  {t('profile.connectedCount', { count: friendsCount })}
                 </Typography>
               )}
               {user && !isOwnProfile && (
                 <Box sx={{ mt: 1 }}>
                   {effectiveStatus === 'friends' && (
-                    <Button size="small" startIcon={<CheckCircleIcon />} disabled>Connected</Button>
+                    <Button size="small" startIcon={<CheckCircleIcon />} disabled>{t('profile.connected')}</Button>
                   )}
                   {effectiveStatus === 'pending_sent' && (
-                    <Button size="small" startIcon={<HourglassEmptyIcon />} disabled>Request sent</Button>
+                    <Button size="small" startIcon={<HourglassEmptyIcon />} disabled>{t('profile.requestSent')}</Button>
                   )}
                   {effectiveStatus === 'pending_received' && (
-                    <Typography variant="body2" color="text.secondary">They sent you a request. Accept in Friends.</Typography>
+                    <Typography variant="body2" color="text.secondary">{t('profile.theySentRequest')}</Typography>
                   )}
                   {canConnect && (
                     <Button variant="outlined" size="small" startIcon={<PersonAddIcon />} onClick={handleConnect} disabled={sendingRequest}>
-                      Connect
+                      {t('profile.connect')}
                     </Button>
                   )}
                 </Box>
@@ -126,7 +129,7 @@ export function ProfilePage() {
       {/* Only logged-in users see "Events they're going to" on someone else's profile (see functional doc). */}
       {user && (
         <>
-          <Typography variant="h6" gutterBottom>Events they&apos;re going to</Typography>
+          <Typography variant="h6" gutterBottom>{t('profile.eventsGoing')}</Typography>
           {connError && <Alert severity="error" sx={{ mb: 1 }}>{connError}</Alert>}
           {eventsError && <Alert severity="error" sx={{ mb: 1 }}>{eventsError}</Alert>}
           {eventsLoading ? (
@@ -136,7 +139,7 @@ export function ProfilePage() {
               ))}
             </Stack>
           ) : events.length === 0 ? (
-            <Typography color="text.secondary">No upcoming events.</Typography>
+            <Typography color="text.secondary">{t('profile.noUpcoming')}</Typography>
           ) : (
             <Stack spacing={1}>
               {events.map((e) => (

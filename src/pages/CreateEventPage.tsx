@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { createEvent } from '../services/eventService';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -27,6 +28,7 @@ import { COVER_ASPECT_RATIOS } from '../models/Event';
 import { EventType, Visibility, EVENT_TYPE_LABELS, VISIBILITY_LABELS } from '../models/enums';
 
 export function CreateEventPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showMessage } = useSnackbar();
@@ -61,7 +63,7 @@ export function CreateEventPage() {
     if (!user) return;
     setError(null);
     if (latitude === 0 && longitude === 0) {
-      setError('Search for an address above or pick a location on the map.');
+      setError(t('events.searchAddressRequired'));
       return;
     }
     setLoading(true);
@@ -86,10 +88,10 @@ export function CreateEventPage() {
         },
         user.id
       );
-      showMessage('Event created successfully', 'success');
+      showMessage(t('events.eventCreated'), 'success');
       navigate('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create event');
+      setError(err instanceof Error ? err.message : t('events.failedToCreateEvent'));
     } finally {
       setLoading(false);
     }
@@ -97,14 +99,14 @@ export function CreateEventPage() {
 
   return (
     <Box sx={{ maxWidth: 560, mx: 'auto' }}>
-      <Typography variant="h5" gutterBottom>Create event</Typography>
+      <Typography variant="h5" gutterBottom>{t('events.createEventTitle')}</Typography>
       <Paper variant="outlined" sx={{ p: 2 }}>
         <form onSubmit={handleSubmit}>
           <Stack spacing={2}>
-            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
-            <TextField label="Date and time" type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} required fullWidth InputLabelProps={{ shrink: true }} />
+            <TextField label={t('events.name')} value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
+            <TextField label={t('events.dateAndTime')} type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} required fullWidth InputLabelProps={{ shrink: true }} />
 
-            <Typography variant="subtitle2">Location — search for an address or click the map</Typography>
+            <Typography variant="subtitle2">{t('events.locationHint')}</Typography>
             <AddressAutocomplete
               value={address}
               onChange={setAddress}
@@ -113,24 +115,24 @@ export function CreateEventPage() {
                 setLongitude(lon);
                 setAddress(displayName);
               }}
-              label="Address"
-              placeholder="Type an address (e.g. street, city)..."
+              label={t('events.address')}
+              placeholder={t('events.addressPlaceholder')}
             />
             <LocationPicker latitude={latitude} longitude={longitude} onLocationChange={(lat, lng) => { setLatitude(lat); setLongitude(lng); }} />
 
             <TextField
-              label="Description (optional)"
+              label={t('events.descriptionOptional')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               multiline
               minRows={3}
-              placeholder="What's it about? Why should people come?"
+              placeholder={t('events.descriptionPlaceholder')}
               fullWidth
             />
 
             {isUploadConfigured() && (
               <Box>
-                <Typography variant="subtitle2" gutterBottom>Cover photo (optional)</Typography>
+                <Typography variant="subtitle2" gutterBottom>{t('events.coverPhotoOptional')}</Typography>
                 <input
                   type="file"
                   accept="image/*"
@@ -166,7 +168,7 @@ export function CreateEventPage() {
                       sx={{ width: '100%' }}
                     />
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                      Drag the image to adjust how it’s cropped in the card.
+                      {t('events.dragCoverHint')}
                     </Typography>
                     <IconButton
                       size="small"
@@ -178,31 +180,31 @@ export function CreateEventPage() {
                   </Box>
                 ) : (
                   <Button variant="outlined" size="small" startIcon={<PhotoCameraIcon />} onClick={() => coverInputRef.current?.click()}>
-                    Add cover photo
+                    {t('events.addCoverPhoto')}
                   </Button>
                 )}
               </Box>
             )}
 
             <FormControl fullWidth>
-              <InputLabel>Type</InputLabel>
-              <Select value={eventType} label="Type" onChange={(e) => setEventType(e.target.value as EventType)}>
-                {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((t) => (
-                  <MenuItem key={t} value={t}>{EVENT_TYPE_LABELS[t]}</MenuItem>
+              <InputLabel>{t('events.type')}</InputLabel>
+              <Select value={eventType} label={t('events.type')} onChange={(e) => setEventType(e.target.value as EventType)}>
+                {(Object.keys(EVENT_TYPE_LABELS) as EventType[]).map((eventType) => (
+                  <MenuItem key={eventType} value={eventType}>{t(`enums.eventType.${eventType}`)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel>Visibility</InputLabel>
-              <Select value={visibility} label="Visibility" onChange={(e) => setVisibility(e.target.value as Visibility)}>
+              <InputLabel>{t('events.visibility')}</InputLabel>
+              <Select value={visibility} label={t('events.visibility')} onChange={(e) => setVisibility(e.target.value as Visibility)}>
                 {(Object.keys(VISIBILITY_LABELS) as Visibility[]).map((v) => (
-                  <MenuItem key={v} value={v}>{VISIBILITY_LABELS[v]}</MenuItem>
+                  <MenuItem key={v} value={v}>{t(`enums.visibility.${v}`)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
 
             {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
-            <Button type="submit" variant="contained" disabled={loading}>{loading ? 'Creating...' : 'Create event'}</Button>
+            <Button type="submit" variant="contained" disabled={loading}>{loading ? t('events.creating') : t('events.createEvent')}</Button>
           </Stack>
         </form>
       </Paper>

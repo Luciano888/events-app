@@ -17,3 +17,11 @@ export interface CreateEventPostInput {
   type: EventPostType;
   pinned?: boolean;
 }
+
+export interface EventPostReactionRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  emoji: string;
+  created_at?: string;
+}

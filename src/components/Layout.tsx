@@ -19,6 +19,8 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LogoutIcon from '@mui/icons-material/Logout';
+import TranslateIcon from '@mui/icons-material/Translate';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/authService';
 import { SetupBanner } from './SetupBanner';
@@ -26,6 +28,7 @@ import { SetupBanner } from './SetupBanner';
 const iconStyle = { color: 'white' };
 
 export function Layout() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const location = useLocation();
   const theme = useTheme();
@@ -41,11 +44,11 @@ export function Layout() {
         <Toolbar sx={{ justifyContent: 'center', gap: 0 }}>
           <Box sx={{ flex: 1, minWidth: 0 }} />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Tooltip title="Events">
+            <Tooltip title={t('nav.events')}>
               <IconButton
                 component={NavLink}
                 to="/"
-                aria-label="Events"
+                aria-label={t('nav.events')}
                 sx={{
                   ...iconStyle,
                   ...(isEvents ? { bgcolor: 'rgba(255,255,255,0.2)' } : {}),
@@ -56,11 +59,11 @@ export function Layout() {
             </Tooltip>
             {user ? (
               <>
-                <Tooltip title="Profile">
+                <Tooltip title={t('nav.profile')}>
                   <IconButton
                     component={NavLink}
                     to="/profile/me"
-                    aria-label="Profile"
+                    aria-label={t('nav.profile')}
                     sx={{
                       ...iconStyle,
                       ...(isProfile ? { bgcolor: 'rgba(255,255,255,0.2)' } : {}),
@@ -73,11 +76,20 @@ export function Layout() {
             ) : null}
           </Box>
           <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>
+          <Tooltip title={`${t('nav.language')}: ${i18n.language?.startsWith('es') ? t('nav.english') : t('nav.spanish')}`}>
+            <IconButton
+              aria-label={t('nav.language')}
+              onClick={() => void i18n.changeLanguage(i18n.language?.startsWith('es') ? 'en' : 'es')}
+              sx={iconStyle}
+            >
+              <TranslateIcon />
+            </IconButton>
+          </Tooltip>
           {user ? (
             <>
-              <Tooltip title="Account">
+              <Tooltip title={t('nav.account')}>
                 <IconButton
-                  aria-label="Account"
+                  aria-label={t('nav.account')}
                   onClick={(e) => setAccountAnchor(e.currentTarget)}
                   sx={iconStyle}
                 >
@@ -100,27 +112,27 @@ export function Layout() {
                     signOut();
                   }}
                 >
-                  <LogoutIcon sx={{ mr: 1, fontSize: 20 }} /> Sign out
+                  <LogoutIcon sx={{ mr: 1, fontSize: 20 }} /> {t('nav.logout')}
                 </MenuItem>
               </Menu>
             </>
           ) : (
             <>
-              <Tooltip title="Log in">
+              <Tooltip title={t('nav.login')}>
                 <IconButton
                   component={NavLink}
                   to="/login"
-                  aria-label="Log in"
+                  aria-label={t('nav.login')}
                   sx={{ ...iconStyle, ...(location.pathname === '/login' ? { bgcolor: 'rgba(255,255,255,0.2)' } : {}) }}
                 >
                   <LoginIcon />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sign up">
+              <Tooltip title={t('nav.signup')}>
                 <IconButton
                   component={NavLink}
                   to="/signup"
-                  aria-label="Sign up"
+                  aria-label={t('nav.signup')}
                   sx={{ ...iconStyle, ...(location.pathname === '/signup' ? { bgcolor: 'rgba(255,255,255,0.2)' } : {}) }}
                 >
                   <PersonAddIcon />
@@ -137,10 +149,10 @@ export function Layout() {
         </Box>
       </Box>
       {user && (
-        <Tooltip title="Create event">
+        <Tooltip title={t('nav.createEvent')}>
           <Fab
             color="primary"
-            aria-label="Create event"
+            aria-label={t('nav.createEvent')}
             component={NavLink}
             to="/create"
             sx={{

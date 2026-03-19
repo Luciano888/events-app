@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextField, Popper, Paper, List, ListItemButton, ListItemText, CircularProgress, InputAdornment } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { useTranslation } from 'react-i18next';
 import { fetchPhotonSuggestions, type PhotonResult } from '../services/photonService';
 
 const DEBOUNCE_MS = 400;
@@ -18,10 +19,11 @@ export function AddressAutocomplete({
   value,
   onChange,
   onSelect,
-  label = 'Address',
-  placeholder = 'Start typing an address...',
+  label,
+  placeholder,
   disabled = false,
 }: AddressAutocompleteProps) {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(value);
   const [suggestions, setSuggestions] = useState<PhotonResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,8 +82,8 @@ export function AddressAutocomplete({
     <div ref={anchorRef}>
       <TextField
         fullWidth
-        label={label}
-        placeholder={placeholder}
+        label={label ?? t('events.address')}
+        placeholder={placeholder ?? t('events.addressPlaceholder')}
         value={inputValue}
         onChange={handleInputChange}
         onFocus={() => setOpen(suggestions.length > 0)}

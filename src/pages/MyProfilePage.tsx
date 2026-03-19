@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import SaveIcon from '@mui/icons-material/Save';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import GroupIcon from '@mui/icons-material/Group';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { useEventsUserIsAttending } from '../hooks/useEventsUserIsAttending';
@@ -25,10 +26,13 @@ import { updateProfile, getProfilesByIds } from '../services/profileService';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { EventCard } from '../components/EventCard';
 import { useAttendanceCounts } from '../hooks/useAttendanceCounts';
+import { FocalPointEditor, type FocalPoint } from '../components/FocalPointEditor';
 import { uploadImage, isUploadConfigured } from '../services/cloudinaryService';
 import type { Profile } from '../models/Profile';
+import { getAvatarObjectPosition } from '../utils/avatarPosition';
 
 export function MyProfilePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { profile, loading: profileLoading, error: profileError } = useProfile(user?.id ?? null, true);
   const { events, loading: eventsLoading, error: eventsError } = useEventsUserIsAttending(user?.id ?? null, user?.id ?? null);
@@ -70,9 +74,9 @@ export function MyProfilePage() {
   }, [creatorIds.join(',')]);
 
   const [displayName, setDisplayName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [avatarPosition, setAvatarPosition] = useState<FocalPoint>({ x: 50, y: 50 });
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -91,8 +95,11 @@ export function MyProfilePage() {
   useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name ?? '');
-      setAvatarUrl(profile.avatar_url ?? '');
       setBio(profile.bio ?? '');
+      setAvatarPosition({
+        x: profile.avatar_position_x ?? 50,
+        y: profile.avatar_position_y ?? 50,
+      });
     }
   }, [profile]);
 
@@ -101,21 +108,22 @@ export function MyProfilePage() {
     setFormError(null);
     setSaving(true);
     try {
-      let finalAvatarUrl = avatarUrl.trim() || null;
+      let finalAvatarUrl = profile?.avatar_url ?? null;
       if (avatarFile && isUploadConfigured()) {
         const result = await uploadImage(avatarFile);
         finalAvatarUrl = result.secure_url;
-        setAvatarUrl(finalAvatarUrl);
         setAvatarFile(null);
       }
       await updateProfile(user.id, {
         display_name: displayName.trim() || null,
         avatar_url: finalAvatarUrl,
+        avatar_position_x: Math.round(avatarPosition.x),
+        avatar_position_y: Math.round(avatarPosition.y),
         bio: bio.trim() || null,
       });
-      showMessage('Profile updated', 'success');
+      showMessage(t('profile.profileUpdated'), 'success');
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Failed to update profile');
+      setFormError(err instanceof Error ? err.message : t('profile.profileUpdateFailed'));
     } finally {
       setSaving(false);
     }
@@ -124,7 +132,7 @@ export function MyProfilePage() {
   if (!user) {
     return (
       <Box>
-        <Alert severity="info">Sign in to view and edit your profile.</Alert>
+        <Alert severity="info">{t('profile.signInProfile')}</Alert>
       </Box>
     );
   }
@@ -138,7 +146,7 @@ export function MyProfilePage() {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>My profile</Typography>
+      <Typography variant="h5" gutterBottom>{t('profile.myProfile')}</Typography>
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
@@ -148,11 +156,24 @@ export function MyProfilePage() {
                 accept="image/*"
                 ref={avatarInputRef}
                 style={{ display: 'none' }}
-                onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setAvatarFile(file);
+                  if (file) setAvatarPosition({ x: 50, y: 50 });
+                }}
               />
               <Avatar
-                src={avatarPreviewUrl || avatarUrl || undefined}
-                sx={{ width: 80, height: 80, cursor: isUploadConfigured() ? 'pointer' : 'default' }}
+                src={avatarPreviewUrl || profile?.avatar_url || undefined}
+                sx={{
+                  width: 80,
+                  height: 80,
+                  cursor: isUploadConfigured() ? 'pointer' : 'default',
+                  '& .MuiAvatar-img': {
+                    objectPosition: avatarPreviewUrl
+                      ? `${avatarPosition.x}% ${avatarPosition.y}%`
+                      : getAvatarObjectPosition(profile),
+                  },
+                }}
                 onClick={() => isUploadConfigured() && avatarInputRef.current?.click()}
               >
                 {(displayName || user.email)?.[0]?.toUpperCase() ?? '?'}
@@ -162,36 +183,41 @@ export function MyProfilePage() {
                   size="small"
                   sx={{ position: 'absolute', bottom: 0, right: 0, bgcolor: 'background.paper', boxShadow: 1, '&:hover': { bgcolor: 'action.hover' } }}
                   onClick={() => avatarInputRef.current?.click()}
-                  title="Upload profile photo"
+                  title={t('profile.uploadPhoto')}
                 >
                   <PhotoCameraIcon fontSize="small" />
                 </IconButton>
               )}
               {avatarFile && (
                 <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 0.5 }}>
-                  New photo selected. Save to upload.
+                  {t('profile.newPhotoSelected')}
                 </Typography>
+              )}
+              {avatarFile && avatarPreviewUrl && (
+                <Box sx={{ mt: 1, width: 220 }}>
+                  <FocalPointEditor
+                    src={avatarPreviewUrl}
+                    position={avatarPosition}
+                    onChange={setAvatarPosition}
+                    aspectRatio="1:1"
+                    draggable
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    {t('profile.avatarCropHint')}
+                  </Typography>
+                </Box>
               )}
             </Box>
             <Stack spacing={2} sx={{ flex: 1 }}>
               <TextField
-                label="Display name"
+                label={t('profile.displayName')}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 fullWidth
                 size="small"
               />
               <TextField
-                label="Avatar URL"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                fullWidth
-                size="small"
-                placeholder="Or paste an image URL"
-                helperText={isUploadConfigured() ? 'Upload a photo above or paste a URL here.' : 'Paste an image URL (configure Cloudinary to upload photos).'}
-              />
-              <TextField
-                label="Bio"
+                label={t('profile.bio')}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 fullWidth
@@ -201,7 +227,7 @@ export function MyProfilePage() {
               />
               {formError && <Alert severity="error">{formError}</Alert>}
               <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} disabled={saving}>
-                Save
+                {t('profile.save')}
               </Button>
             </Stack>
           </Stack>
@@ -209,14 +235,14 @@ export function MyProfilePage() {
       </Card>
 
       <Button component={Link} to="/friends" startIcon={<GroupIcon />} variant="outlined" size="small" sx={{ mb: 2 }}>
-        Friends
+        {t('profile.friends')}
       </Button>
 
-      <Typography variant="h6" gutterBottom>My plans</Typography>
+      <Typography variant="h6" gutterBottom>{t('profile.myPlans')}</Typography>
       <Tabs value={plansTimeFilter} onChange={(_, v) => setPlansTimeFilter(v as 'upcoming' | 'past' | 'all')} sx={{ mb: 2 }}>
-        <Tab label="Upcoming" value="upcoming" />
-        <Tab label="Past" value="past" />
-        <Tab label="All" value="all" />
+        <Tab label={t('events.upcoming')} value="upcoming" />
+        <Tab label={t('events.past')} value="past" />
+        <Tab label={t('events.all')} value="all" />
       </Tabs>
       {eventsError && <Alert severity="error" sx={{ mb: 1 }}>{eventsError}</Alert>}
       {eventsLoading ? (
@@ -228,10 +254,10 @@ export function MyProfilePage() {
       ) : filteredPlans.length === 0 ? (
         <Typography color="text.secondary">
           {plansTimeFilter === 'upcoming'
-            ? 'No upcoming plans. Browse events and tap &quot;I&apos;m going&quot; to add them here.'
+            ? t('profile.noUpcomingPlans')
             : plansTimeFilter === 'past'
-              ? 'No past events yet.'
-              : 'You are not going to any events yet. Browse events and tap &quot;I&apos;m going&quot; to add them here.'}
+              ? t('profile.noPastPlans')
+              : t('profile.noPlans')}
         </Typography>
       ) : (
         <Stack spacing={1}>

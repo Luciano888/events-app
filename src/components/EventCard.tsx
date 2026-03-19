@@ -17,8 +17,9 @@ import PeopleIcon from '@mui/icons-material/People';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Event } from '../models/Event';
-import { EVENT_TYPE_LABELS, Visibility } from '../models/enums';
+import { Visibility } from '../models/enums';
 import { getAttendeeUserIds } from '../services/attendanceService';
 import { getProfilesByIds } from '../services/profileService';
 import { buildImageUrl } from '../lib/cloudinary';
@@ -26,6 +27,7 @@ import { useResolvedLocation } from '../hooks/useResolvedLocation';
 import { shortAddress } from '../utils/locationDisplay';
 import { getCoverAspectRatioCss } from '../models/Event';
 import type { Profile } from '../models/Profile';
+import { getAvatarObjectPosition } from '../utils/avatarPosition';
 
 interface EventCardProps {
   event: Event;
@@ -37,7 +39,8 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, attendanceCount = 0, currentUserId, creatorProfile }: EventCardProps) {
-  const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? event.eventType;
+  const { t, i18n } = useTranslation();
+  const typeLabel = t(`enums.eventType.${event.eventType}`);
   const [expanded, setExpanded] = useState(false);
   const [attendees, setAttendees] = useState<Profile[] | null>(null);
   const [attendeesLoading, setAttendeesLoading] = useState(false);
@@ -68,7 +71,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
   };
 
   const locationLabel = useResolvedLocation(event.latitude, event.longitude, event.address);
-  const creatorName = creatorProfile?.display_name ?? 'User';
+  const creatorName = creatorProfile?.display_name ?? t('events.user');
   const coverPublicId = event.coverCloudinaryPublicId;
   const coverAspectCss = getCoverAspectRatioCss(event.coverAspectRatio ?? '1:1');
   const coverSrc = coverPublicId ? buildImageUrl(coverPublicId) : '';
@@ -88,7 +91,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
             component={Link}
             to={`/profile/${event.userId}`}
             src={creatorProfile?.avatar_url ?? undefined}
-            sx={{ width: 40, height: 40, textDecoration: 'none' }}
+            sx={{ width: 40, height: 40, textDecoration: 'none', '& .MuiAvatar-img': { objectPosition: getAvatarObjectPosition(creatorProfile) } }}
           >
             {(creatorName ?? event.userId)?.[0]?.toUpperCase() ?? '?'}
           </Avatar>
@@ -103,7 +106,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
               {creatorName}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Event
+              {typeLabel}
             </Typography>
           </Box>
         </Box>
@@ -125,7 +128,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
           {event.name}
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          {event.getDisplayDate()} · {typeLabel}
+          {event.getDisplayDate(i18n.language)}
         </Typography>
       </CardContent>
       {coverSrc && (
@@ -169,7 +172,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
             <Chip
               size="small"
               icon={canShowAttendees ? (expanded ? <ExpandLessIcon sx={{ fontSize: 14 }} /> : <ExpandMoreIcon sx={{ fontSize: 14 }} />) : <PeopleIcon sx={{ fontSize: 14 }} />}
-              label={`${attendanceCount} going`}
+              label={t('events.goingCount', { count: attendanceCount })}
               variant="outlined"
               onClick={canShowAttendees ? handleToggleAttendees : undefined}
               sx={canShowAttendees ? { cursor: 'pointer' } : undefined}
@@ -180,7 +183,7 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
         <Collapse in={expanded}>
           <Box sx={{ mt: 1.5, pl: 0.5, borderLeft: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Attendees
+              {t('events.attendees')}
             </Typography>
             {attendeesLoading ? (
               <Skeleton variant="rounded" height={40} />
@@ -189,16 +192,16 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
                 {attendees.map((p) => (
                   <ListItem key={p.id} component={Link} to={`/profile/${p.id}`} sx={{ px: 0, py: 0.25 }} alignItems="flex-start">
                     <ListItemAvatar sx={{ minWidth: 36 }}>
-                      <Avatar src={p.avatar_url ?? undefined} sx={{ width: 28, height: 28 }}>
+                      <Avatar src={p.avatar_url ?? undefined} sx={{ width: 28, height: 28, '& .MuiAvatar-img': { objectPosition: getAvatarObjectPosition(p) } }}>
                         {(p.display_name ?? p.id)?.[0]?.toUpperCase() ?? '?'}
                       </Avatar>
                     </ListItemAvatar>
-                    <ListItemText primary={p.display_name ?? 'User'} primaryTypographyProps={{ variant: 'body2' }} />
+                    <ListItemText primary={p.display_name ?? t('events.user')} primaryTypographyProps={{ variant: 'body2' }} />
                   </ListItem>
                 ))}
               </List>
             ) : attendees && attendees.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">No attendees.</Typography>
+              <Typography variant="body2" color="text.secondary">{t('events.noAttendees')}</Typography>
             ) : null}
           </Box>
         </Collapse>

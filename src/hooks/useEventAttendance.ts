@@ -1,34 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getAttendanceCount,
   getCurrentUserAttendance,
   setAttendance as setAttendanceApi,
 } from '../services/attendanceService';
 
-export function useEventAttendance(eventId: string | undefined, userId: string | null) {
+/**
+ * @param authLoading When true, skips fetch until session is known (avoids treating "user not loaded yet" as not going).
+ */
+export function useEventAttendance(
+  eventId: string | undefined,
+  userId: string | null,
+  authLoading = false
+) {
   const [count, setCount] = useState(0);
-  const [isGoing, setIsGoing] = useState(false);
+  const [isGoing, setIsGoing] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [attendanceError, setAttendanceError] = useState<string | null>(null);
+  const refreshSeqRef = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!eventId) return;
+    if (!eventId || authLoading) return;
+    const seq = ++refreshSeqRef.current;
     setLoading(true);
     try {
-      const [c, going] = await Promise.all([
-        getAttendanceCount(eventId),
-        getCurrentUserAttendance(eventId, userId),
-      ]);
+      const goingPromise = userId
+        ? getCurrentUserAttendance(eventId, userId)
+        : Promise.resolve<boolean | null>(null);
+      const [c, going] = await Promise.all([getAttendanceCount(eventId), goingPromise]);
+      if (seq !== refreshSeqRef.current) return;
       setCount(c);
       setIsGoing(going);
     } catch {
+      if (seq !== refreshSeqRef.current) return;
       setCount(0);
-      setIsGoing(false);
+      setIsGoing(null);
     } finally {
-      setLoading(false);
+      if (seq === refreshSeqRef.current) setLoading(false);
     }
-  }, [eventId, userId]);
+  }, [eventId, userId, authLoading]);
 
   useEffect(() => {
     refresh();

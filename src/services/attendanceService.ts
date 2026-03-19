@@ -18,8 +18,8 @@ export async function getAttendanceCount(eventId: string): Promise<number> {
 export async function getCurrentUserAttendance(
   eventId: string,
   userId: string | null
-): Promise<boolean> {
-  if (!userId) return false;
+): Promise<boolean | null> {
+  if (!userId) return null;
   const { data, error } = await supabase
     .from('event_attendees')
     .select('user_id')
