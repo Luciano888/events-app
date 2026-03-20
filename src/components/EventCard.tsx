@@ -12,10 +12,13 @@ import {
   ListItemText,
   Skeleton,
   Avatar,
+  Button,
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Event } from '../models/Event';
@@ -36,9 +39,11 @@ interface EventCardProps {
   currentUserId?: string | null;
   /** Creator profile for "who published" header. */
   creatorProfile?: Profile | null;
+  /** Current user has marked "going" for this event. */
+  userIsAttending?: boolean;
 }
 
-export function EventCard({ event, attendanceCount = 0, currentUserId, creatorProfile }: EventCardProps) {
+export function EventCard({ event, attendanceCount = 0, currentUserId, creatorProfile, userIsAttending = false }: EventCardProps) {
   const { t, i18n } = useTranslation();
   const typeLabel = t(`enums.eventType.${event.eventType}`);
   const [expanded, setExpanded] = useState(false);
@@ -83,6 +88,14 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
         overflow: 'hidden',
         borderRadius: 2,
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        transition: (theme) =>
+          theme.transitions.create(['box-shadow', 'border-color'], {
+            duration: theme.transitions.duration.shortest,
+          }),
+        '&:hover': {
+          boxShadow: 6,
+          borderColor: 'primary.light',
+        },
       }}
     >
       <CardContent sx={{ pb: 0, '&:last-child': { pb: 2 } }}>
@@ -111,22 +124,29 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
           </Box>
         </Box>
 
-        <Typography
-          variant="h6"
+        <Box
           component={Link}
           to={`/event/${event.id}`}
-          gutterBottom
           sx={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 0.5,
+            mb: 1,
             color: 'inherit',
             textDecoration: 'none',
-            fontWeight: 600,
-            fontSize: '1.15rem',
-            '&:hover': { textDecoration: 'underline' },
+            '&:hover .event-card-title': { textDecoration: 'underline' },
           }}
         >
-          {event.name}
-        </Typography>
+          <Typography
+            className="event-card-title"
+            component="span"
+            variant="h6"
+            sx={{ flex: 1, fontWeight: 600, fontSize: '1.15rem', lineHeight: 1.3 }}
+          >
+            {event.name}
+          </Typography>
+          <ChevronRightIcon sx={{ color: 'text.secondary', flexShrink: 0, mt: 0.25 }} aria-hidden />
+        </Box>
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {event.getDisplayDate(i18n.language)}
         </Typography>
@@ -167,6 +187,15 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
       )}
       <CardContent sx={{ pt: 1.5, pb: 2 }}>
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+          {userIsAttending && (
+            <Chip
+              size="small"
+              icon={<CheckCircleIcon sx={{ fontSize: '16px !important' }} />}
+              label={t('events.attendingShort')}
+              color="success"
+              variant="outlined"
+            />
+          )}
           <Chip size="small" label={shortAddress(locationLabel)} variant="outlined" sx={{ maxWidth: '100%' }} />
           {(attendanceCount ?? 0) > 0 && (
             <Chip
@@ -205,6 +234,19 @@ export function EventCard({ event, attendanceCount = 0, currentUserId, creatorPr
             ) : null}
           </Box>
         </Collapse>
+
+        <Button
+          component={Link}
+          to={`/event/${event.id}`}
+          variant="contained"
+          color="primary"
+          fullWidth
+          size="medium"
+          endIcon={<ChevronRightIcon />}
+          sx={{ mt: 2 }}
+        >
+          {t('events.viewEvent')}
+        </Button>
       </CardContent>
     </Card>
   );

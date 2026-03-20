@@ -23,6 +23,7 @@ import { useEvents } from '../hooks/useEvents';
 import { useAttendanceCounts } from '../hooks/useAttendanceCounts';
 import { EventCard } from '../components/EventCard';
 import { getProfilesByIds } from '../services/profileService';
+import { getEventIdsUserIsAttending } from '../services/attendanceService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { EventType, EVENT_TYPE_LABELS } from '../models/enums';
 import type { Profile } from '../models/Profile';
@@ -96,6 +97,18 @@ export function HomePage() {
 
   const creatorIds = useMemo(() => [...new Set(filteredAndSorted.map((e) => e.userId))], [filteredAndSorted]);
   const [creatorProfiles, setCreatorProfiles] = useState<Record<string, Profile>>({});
+  const [myAttendingIds, setMyAttendingIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (!user?.id) {
+      setMyAttendingIds(new Set());
+      return;
+    }
+    getEventIdsUserIsAttending(user.id)
+      .then((ids) => setMyAttendingIds(new Set(ids)))
+      .catch(() => setMyAttendingIds(new Set()));
+  }, [user?.id]);
+
   useEffect(() => {
     if (creatorIds.length === 0) {
       setCreatorProfiles({});
@@ -202,6 +215,7 @@ export function HomePage() {
               attendanceCount={attendanceCounts[event.id]}
               currentUserId={user?.id ?? null}
               creatorProfile={creatorProfiles[event.userId]}
+              userIsAttending={user ? myAttendingIds.has(event.id) : false}
             />
           ))}
         </Stack>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Box, Typography, TextField, Button, Alert, Paper, Stack } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { signIn } from '../services/authService';
@@ -11,6 +11,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+  const redirectTo = fromState ? `${fromState.pathname}${fromState.search ?? ''}` : '/';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,7 +21,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await signIn(email, password);
-      navigate('/');
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('auth.loginFailed'));
     } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -9,7 +9,6 @@ import {
   Button,
   Skeleton,
   Alert,
-  ButtonGroup,
   Stack,
   Avatar,
   List,
@@ -28,8 +27,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
+  Drawer,
+  Fab,
+  useMediaQuery,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { useTheme } from '@mui/material/styles';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -114,7 +118,12 @@ export function EventDetailPage() {
   const { t, i18n } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const theme = useTheme();
+  const isMobileDrawer = useMediaQuery(theme.breakpoints.down('md'));
   const { user, loading: authLoading } = useAuth();
+  const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,6 +143,25 @@ export function EventDetailPage() {
 
   const isCreator = useMemo(() => event && user && event.userId === user.id, [event, user]);
   const canAccessWallAndChat = isGoing || isCreator;
+
+  const closeChatDrawer = useCallback(() => {
+    setChatDrawerOpen(false);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('chat');
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
+  const chatQuery = searchParams.get('chat');
+  useEffect(() => {
+    if (chatQuery === '1' && canAccessWallAndChat && event) {
+      setChatDrawerOpen(true);
+    }
+  }, [chatQuery, canAccessWallAndChat, event]);
 
   const { posts, loading: postsLoading, error: postsError, refetch: refetchPosts } = useEventPosts(canAccessWallAndChat ? id ?? null : null);
   const postIds = useMemo(() => posts.map((p) => p.id), [posts]);
@@ -382,6 +410,13 @@ export function EventDetailPage() {
   const typeLabel = t(`enums.eventType.${event.eventType}`);
   const visibilityLabel = t(`enums.visibility.${event.visibility}`);
 
+  const focusRsvpSection = () => {
+    setTab(0);
+    window.setTimeout(() => {
+      document.getElementById('event-rsvp-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  };
+
   const infoPanel = (
     <>
       {event.coverCloudinaryPublicId && (
@@ -427,6 +462,90 @@ export function EventDetailPage() {
           <Typography variant="body2" color="text.secondary">
             {t('events.location', { value: shortAddress(locationLabel) })}
           </Typography>
+
+          <Box
+            id="event-rsvp-section"
+            component="section"
+            sx={{ mt: 2 }}
+            aria-label={isGoing === true ? t('events.rsvpYouAreGoing') : t('events.areYouGoing')}
+          >
+            <Divider sx={{ mb: 2 }} />
+            {authLoading ? (
+              <Skeleton variant="rounded" height={72} />
+            ) : user ? (
+              <Stack spacing={2} alignItems="stretch">
+                {attendanceError && (
+                  <Alert severity="error" onClose={clearError}>{attendanceError}</Alert>
+                )}
+                {!attendanceLoading && isGoing === true && (
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ fontSize: '18px !important' }} />}
+                    label={t('events.rsvpYouAreGoing')}
+                    color="success"
+                    sx={{ fontWeight: 600, alignSelf: 'flex-start' }}
+                  />
+                )}
+                {(!attendanceLoading && isGoing !== true) && (
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                      {t('events.areYouGoing')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('events.rsvpHint')}
+                    </Typography>
+                  </Box>
+                )}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                  <Button
+                    variant={isGoing === false ? 'outlined' : 'contained'}
+                    color="primary"
+                    size="medium"
+                    fullWidth
+                    startIcon={<CheckCircleIcon />}
+                    onClick={() => setGoing(true)}
+                    disabled={updating || attendanceLoading}
+                    sx={{ flex: { sm: 1 } }}
+                  >
+                    {t('events.imGoing')}
+                  </Button>
+                  <Button
+                    variant={isGoing === false ? 'contained' : 'outlined'}
+                    color="secondary"
+                    size="medium"
+                    fullWidth
+                    startIcon={<CancelIcon />}
+                    onClick={() => setGoing(false)}
+                    disabled={updating || attendanceLoading}
+                    sx={{ flex: { sm: 1 } }}
+                  >
+                    {t('events.imNotGoing')}
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : (
+              <Stack spacing={2} alignItems="stretch">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                    {t('events.areYouGoing')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('events.loginToRsvp')}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  component={Link}
+                  to="/login"
+                  state={{ from: { pathname: location.pathname, search: location.search } }}
+                  size="medium"
+                  fullWidth
+                >
+                  {t('events.loginToRsvpAction')}
+                </Button>
+              </Stack>
+            )}
+          </Box>
+
           {event.description && (
             <Box sx={{ mt: 1.5 }}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>{t('events.about')}</Typography>
@@ -474,34 +593,6 @@ export function EventDetailPage() {
               )}
             </Box>
           )}
-
-          {user && (
-            <Box sx={{ mt: 2 }}>
-              {attendanceError && (
-                <Alert severity="error" sx={{ mb: 1 }} onClose={clearError}>{attendanceError}</Alert>
-              )}
-              <Typography variant="subtitle2" gutterBottom>{t('events.areYouGoing')}</Typography>
-              <ButtonGroup size="small">
-                <Button
-                  variant={isGoing === true ? 'contained' : 'outlined'}
-                  startIcon={<CheckCircleIcon />}
-                  onClick={() => setGoing(true)}
-                  disabled={updating || attendanceLoading}
-                >
-                  {t('events.imGoing')}
-                </Button>
-                <Button
-                  variant={isGoing === false ? 'contained' : 'outlined'}
-                  color="secondary"
-                  startIcon={<CancelIcon />}
-                  onClick={() => setGoing(false)}
-                  disabled={updating || attendanceLoading}
-                >
-                  {t('events.imNotGoing')}
-                </Button>
-              </ButtonGroup>
-            </Box>
-          )}
         </CardContent>
       </Card>
       <Typography variant="subtitle2" gutterBottom>{t('events.map')}</Typography>
@@ -513,11 +604,29 @@ export function EventDetailPage() {
           </Marker>
         </MapContainer>
       </Box>
+      {user && canAccessWallAndChat && (
+        <Alert
+          severity="info"
+          sx={{ mt: 2 }}
+          action={
+            <Button color="inherit" size="small" startIcon={<ChatIcon />} onClick={() => setChatDrawerOpen(true)}>
+              {t('events.openChat')}
+            </Button>
+          }
+        >
+          {t('events.chatHintInfo')}
+        </Alert>
+      )}
     </>
   );
 
   const wallPanel = !canAccessWallAndChat ? (
-    <Alert severity="info">{t('events.wallLocked')}</Alert>
+    <Stack spacing={2}>
+      <Alert severity="info">{t('events.wallLocked')}</Alert>
+      <Button variant="contained" onClick={focusRsvpSection} startIcon={<CheckCircleIcon />}>
+        {t('events.goToRsvp')}
+      </Button>
+    </Stack>
   ) : (
     <Stack spacing={2}>
       {user && (
@@ -837,17 +946,32 @@ export function EventDetailPage() {
     </Stack>
   );
 
-  const chatPanel = !canAccessWallAndChat ? (
-    <Alert severity="info">{t('events.chatLocked')}</Alert>
+  const eventChatContent = !canAccessWallAndChat ? (
+    <Stack spacing={2}>
+      <Alert severity="info">{t('events.chatLocked')}</Alert>
+      <Button variant="contained" onClick={focusRsvpSection} startIcon={<CheckCircleIcon />}>
+        {t('events.goToRsvp')}
+      </Button>
+    </Stack>
   ) : (
-    <Stack spacing={1} sx={{ height: 400 }}>
+    <Stack
+      spacing={1}
+      sx={{
+        flex: 1,
+        minHeight: 200,
+        maxHeight: { xs: 'min(58vh, 480px)', sm: 'calc(100vh - 200px)' },
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       {!chatOpen && (
         <Alert severity="info">
           {t('events.chatClosed')}
         </Alert>
       )}
       {messagesError && <Alert severity="error">{messagesError}</Alert>}
-      <Paper variant="outlined" sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+      <Paper variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1 }}>
         {messagesLoading ? (
           <Skeleton variant="rounded" height={200} />
         ) : messages.length === 0 ? (
@@ -936,14 +1060,86 @@ export function EventDetailPage() {
   return (
     <Box>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>{t('events.back')}</Button>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label={t('events.info')} icon={<InfoIcon />} iconPosition="start" />
-        <Tab label={t('events.wall')} icon={<ArticleIcon />} iconPosition="start" />
-        <Tab label={t('events.chat')} icon={<ChatIcon />} iconPosition="start" />
-      </Tabs>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          sx={{ flex: '1 1 auto', minWidth: 0, '& .MuiTabs-flexContainer': { flexWrap: { xs: 'wrap', sm: 'nowrap' } } }}
+        >
+          <Tab label={t('events.info')} icon={<InfoIcon />} iconPosition="start" />
+          <Tab label={t('events.wall')} icon={<ArticleIcon />} iconPosition="start" />
+        </Tabs>
+        {user && canAccessWallAndChat && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<ChatIcon />}
+            onClick={() => setChatDrawerOpen(true)}
+            sx={{ flexShrink: 0 }}
+          >
+            {t('events.openChat')}
+          </Button>
+        )}
+      </Box>
       {tab === 0 && infoPanel}
       {tab === 1 && wallPanel}
-      {tab === 2 && chatPanel}
+
+      <Drawer
+        anchor={isMobileDrawer ? 'bottom' : 'right'}
+        open={chatDrawerOpen}
+        onClose={closeChatDrawer}
+        PaperProps={{
+          sx: isMobileDrawer
+            ? {
+                height: '88vh',
+                maxHeight: '92vh',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                boxSizing: 'border-box',
+              }
+            : { width: 440, maxWidth: '100vw', boxSizing: 'border-box' },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            p: 2,
+            pt: isMobileDrawer ? 1 : 2,
+            boxSizing: 'border-box',
+            minHeight: 0,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1, flexShrink: 0 }}>
+            <Typography variant="h6" component="h2" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, lineHeight: 1.3, pr: 1 }}>
+              {event ? `${t('events.chat')} · ${event.name}` : t('events.chat')}
+            </Typography>
+            <IconButton aria-label={t('events.closeChat')} onClick={closeChatDrawer} edge="end" size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {eventChatContent}
+          </Box>
+        </Box>
+      </Drawer>
+
+      {user && canAccessWallAndChat && event && (
+        <Fab
+          color="secondary"
+          aria-label={t('events.openChat')}
+          onClick={() => setChatDrawerOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: 24,
+            zIndex: theme.zIndex.speedDial - 1,
+          }}
+        >
+          <ChatIcon />
+        </Fab>
+      )}
     </Box>
   );
 }

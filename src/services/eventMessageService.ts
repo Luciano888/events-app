@@ -23,6 +23,26 @@ export async function getEventMessages(eventId: string): Promise<EventMessageRow
   return (data ?? []) as EventMessageRow[];
 }
 
+/**
+ * Latest message per event (for inbox). Fetches recent rows and picks first per event_id.
+ */
+export async function getLastMessagesForEvents(eventIds: string[]): Promise<Partial<Record<string, EventMessageRow>>> {
+  if (eventIds.length === 0) return {};
+  const limit = Math.min(500, Math.max(eventIds.length * 25, 50));
+  const { data, error } = await supabase
+    .from('event_messages')
+    .select('*')
+    .in('event_id', eventIds)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const map: Partial<Record<string, EventMessageRow>> = {};
+  for (const row of (data ?? []) as EventMessageRow[]) {
+    if (map[row.event_id] === undefined) map[row.event_id] = row;
+  }
+  return map;
+}
+
 export async function sendEventMessage(eventId: string, userId: string, body: string): Promise<EventMessageRow> {
   const { data, error } = await supabase
     .from('event_messages')

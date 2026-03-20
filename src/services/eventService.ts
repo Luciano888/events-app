@@ -59,6 +59,13 @@ export async function fetchEventById(id: string): Promise<Event | null> {
   return data ? new Event(data as EventRow) : null;
 }
 
+/** Event ids created by the user (any visibility). */
+export async function fetchEventIdsCreatedByUser(userId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('events').select('id').eq('user_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((r: { id: string }) => r.id);
+}
+
 /**
  * Creates a new event. Requires authenticated user (user_id set server-side or from session).
  */

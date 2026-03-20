@@ -20,6 +20,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LogoutIcon from '@mui/icons-material/Logout';
 import TranslateIcon from '@mui/icons-material/Translate';
+import ChatIcon from '@mui/icons-material/Chat';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { signOut } from '../services/authService';
@@ -36,6 +37,7 @@ export function Layout() {
 
   const isEvents = location.pathname === '/';
   const isProfile = location.pathname.startsWith('/profile');
+  const isMessages = location.pathname === '/messages';
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -59,6 +61,19 @@ export function Layout() {
             </Tooltip>
             {user ? (
               <>
+                <Tooltip title={t('nav.messages')}>
+                  <IconButton
+                    component={NavLink}
+                    to="/messages"
+                    aria-label={t('nav.messages')}
+                    sx={{
+                      ...iconStyle,
+                      ...(isMessages ? { bgcolor: 'rgba(255,255,255,0.2)' } : {}),
+                    }}
+                  >
+                    <ChatIcon />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title={t('nav.profile')}>
                   <IconButton
                     component={NavLink}

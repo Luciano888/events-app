@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Alert, Button, Skeleton } from '@mui/material';
+import { Link } from 'react-router-dom';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -68,9 +70,54 @@ export function MapPage() {
           {events.map((event) => (
             <Marker key={event.id} position={[event.latitude, event.longitude]} icon={defaultIcon}>
               <Popup>
-                <strong>{event.name}</strong><br />
-                {event.getDisplayDate(i18n.language)}<br />
-                {t(`enums.eventType.${event.eventType}`)}
+                <Box
+                  sx={{
+                    minWidth: 200,
+                    maxWidth: 280,
+                    p: 0.5,
+                    // Leaflet sets .leaflet-popup-content a { color: ... } — force readable button
+                    '& a.MuiButton-root': {
+                      color: '#fff !important',
+                      textDecoration: 'none !important',
+                      '&:hover': {
+                        color: '#fff !important',
+                        textDecoration: 'none !important',
+                      },
+                      '& .MuiButton-endIcon, & .MuiSvgIcon-root': { color: '#fff !important' },
+                    },
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight={700} gutterBottom component="div">
+                    {event.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                    {event.getDisplayDate(i18n.language)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                    {t(`enums.eventType.${event.eventType}`)}
+                  </Typography>
+                  <Button
+                    component={Link}
+                    to={`/event/${event.id}`}
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    fullWidth
+                    endIcon={<ChevronRightIcon />}
+                    sx={{
+                      color: '#fff !important',
+                      textDecoration: 'none !important',
+                      '&:hover': {
+                        color: '#fff !important',
+                        textDecoration: 'none !important',
+                        bgcolor: 'primary.dark',
+                      },
+                      '& .MuiButton-endIcon, & .MuiSvgIcon-root': { color: '#fff !important' },
+                    }}
+                  >
+                    {t('events.viewEvent')}
+                  </Button>
+                </Box>
               </Popup>
             </Marker>
           ))}

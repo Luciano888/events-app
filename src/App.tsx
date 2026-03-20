@@ -9,6 +9,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { FriendRequestsPage } from './pages/FriendRequestsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
+import { MessagesPage } from './pages/MessagesPage';
 import { useAuth } from './hooks/useAuth';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="profile/me" element={<ProtectedRoute><MyProfilePage /></ProtectedRoute>} />
           <Route path="profile/:userId" element={<ProfilePage />} />
           <Route path="friends" element={<ProtectedRoute><FriendRequestsPage /></ProtectedRoute>} />
+          <Route path="messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
