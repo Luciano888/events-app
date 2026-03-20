@@ -1,0 +1,6 @@
+Favicon graphics (per favicon_io/about.txt from generator):
+
+- Based on Twemoji graphics (e.g. 2705.svg)
+- Copyright 2020 Twitter, Inc and other contributors
+- https://github.com/twitter/twemoji
+- License: CC-BY 4.0 — https://creativecommons.org/licenses/by/4.0/

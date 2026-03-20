@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3949ab"/>
+      <stop offset="100%" style="stop-color:#7e57c2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.12" fill="#fff">
+    <circle cx="200" cy="120" r="180"/>
+    <circle cx="1050" cy="520" r="220"/>
+  </g>
+  <g transform="translate(120,200)">
+    <rect x="0" y="0" width="88" height="88" rx="18" fill="#fff" opacity="0.95"/>
+    <path fill="#5c6bc0" d="M24 28h8v-6a4 4 0 0 1 8 0v6h24v-6a4 4 0 0 1 8 0v6h8c6.6 0 12 5.4 12 12v36c0 6.6-5.4 12-12 12H24c-6.6 0-12-5.4-12-12V40c0-6.6 5.4-12 12-12Zm-4 20v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V48H20Z"/>
+    <rect x="28" y="56" width="10" height="8" rx="1" fill="#9fa8da"/>
+    <rect x="42" y="56" width="10" height="8" rx="1" fill="#9fa8da"/>
+    <rect x="56" y="56" width="10" height="8" rx="1" fill="#9fa8da"/>
+  </g>
+  <text x="240" y="280" fill="#fff" font-family="system-ui,Segoe UI,sans-serif" font-size="72" font-weight="700">Events App</text>
+  <text x="240" y="360" fill="#e8eaf6" font-family="system-ui,Segoe UI,sans-serif" font-size="32" font-weight="400">Discover and join events near you</text>
+</svg>

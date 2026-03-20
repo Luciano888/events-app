@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(function (_a) {
-    var _b, _c, _d, _e;
+    var _b, _c, _d, _e, _f;
     var mode = _a.mode;
     var env = loadEnv(mode, __dirname, '');
     var fallbackError;
@@ -19,8 +19,8 @@ export default defineConfig(function (_a) {
             try {
                 var envPath = path.join(dir, '.env');
                 var content = fs.readFileSync(envPath, 'utf-8');
-                for (var _f = 0, _g = content.split(/\r?\n/); _f < _g.length; _f++) {
-                    var line = _g[_f];
+                for (var _g = 0, _h = content.split(/\r?\n/); _g < _h.length; _g++) {
+                    var line = _h[_g];
                     var m1 = line.match(/^VITE_CLOUDINARY_CLOUD_NAME=(.*)$/);
                     if (m1)
                         cloudName = ((_d = m1[1]) !== null && _d !== void 0 ? _d : '').trim();
@@ -63,10 +63,20 @@ export default defineConfig(function (_a) {
     }
     catch (_) { }
     // #endregion
+    var siteUrl = ((_f = env.VITE_SITE_URL) !== null && _f !== void 0 ? _f : '').trim().replace(/\/$/, '');
+    var ogBaseUrl = siteUrl || 'http://localhost:5173';
     return {
         root: __dirname,
         envDir: __dirname,
-        plugins: [react()],
+        plugins: [
+            react(),
+            {
+                name: 'html-inject-og-base-url',
+                transformIndexHtml: function (html) {
+                    return html.replace(/__OG_BASE_URL__/g, ogBaseUrl);
+                },
+            },
+        ],
         resolve: {
             alias: {
                 '@': '/src',

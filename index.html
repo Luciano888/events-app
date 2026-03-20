@@ -1,10 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Descubre y organiza eventos cerca de ti. Crea, comparte y confirma asistencia."
+    />
+    <meta name="theme-color" content="#ffffff" />
+
     <title>Events App</title>
+
+    <!-- favicon.io: ICO + PNG only (no SVG in pack) -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph — __OG_BASE_URL__ se sustituye en vite.config (VITE_SITE_URL en .env) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Events App" />
+    <meta
+      property="og:description"
+      content="Descubre y organiza eventos cerca de ti. Crea, comparte y confirma asistencia."
+    />
+    <meta property="og:image" content="__OG_BASE_URL__/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="__OG_BASE_URL__/" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content="Events App" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Events App" />
+    <meta
+      name="twitter:description"
+      content="Descubre y organiza eventos cerca de ti. Crea, comparte y confirma asistencia."
+    />
+    <meta name="twitter:image" content="__OG_BASE_URL__/og-image.svg" />
   </head>
   <body>
     <div id="root"></div>

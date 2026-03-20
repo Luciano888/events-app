@@ -56,10 +56,21 @@ export default defineConfig(({ mode }) => {
     fs.appendFileSync(logPath, JSON.stringify(payload) + '\n');
   } catch (_) {}
   // #endregion
+  const siteUrl = (env.VITE_SITE_URL ?? '').trim().replace(/\/$/, '');
+  const ogBaseUrl = siteUrl || 'http://localhost:5173';
+
   return {
     root: __dirname,
     envDir: __dirname,
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'html-inject-og-base-url',
+        transformIndexHtml(html: string) {
+          return html.replace(/__OG_BASE_URL__/g, ogBaseUrl);
+        },
+      },
+    ],
     resolve: {
       alias: {
         '@': '/src',
