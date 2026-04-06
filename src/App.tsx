@@ -10,6 +10,8 @@ import { FriendRequestsPage } from './pages/FriendRequestsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
 import { MessagesPage } from './pages/MessagesPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { useAuth } from './hooks/useAuth';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -37,6 +39,8 @@ export default function App() {
           />
           <Route path="login" element={<LoginPage />} />
           <Route path="signup" element={<SignUpPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="profile/me" element={<ProtectedRoute><MyProfilePage /></ProtectedRoute>} />
           <Route path="profile/:userId" element={<ProfilePage />} />
           <Route path="friends" element={<ProtectedRoute><FriendRequestsPage /></ProtectedRoute>} />
