@@ -52,7 +52,8 @@ export function useEventChatThreads(userId: string | null) {
       });
       setThreads(list);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load messages');
+      const msg = e instanceof Error ? e.message : 'Failed to load messages';
+      setError(msg);
       setThreads([]);
     } finally {
       setLoading(false);

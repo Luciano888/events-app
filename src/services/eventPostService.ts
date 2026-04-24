@@ -58,21 +58,48 @@ export async function createEventPostWithAttachments(
   return post;
 }
 
-export async function togglePostPinned(postId: string): Promise<EventPostRow> {
-  const { data: existing } = await supabase
-    .from('event_posts')
-    .select('pinned')
-    .eq('id', postId)
-    .single();
-  if (!existing) throw new Error('Post not found');
-  const { data, error } = await supabase
-    .from('event_posts')
-    .update({ pinned: !(existing as { pinned: boolean }).pinned })
-    .eq('id', postId)
-    .select()
-    .single();
+/** Event host only; SECURITY DEFINER RPC (migration 20260406120000). */
+export async function togglePostPinned(postId: string): Promise<void> {
+  const { error } = await supabase.rpc('toggle_event_post_pinned', { p_post_id: postId });
   if (error) throw error;
-  return data as EventPostRow;
+}
+
+/**
+ * Deletes attachments not listed in keepIdsOrdered, then inserts new rows.
+ * keepIdsOrdered: ids to keep, in display order.
+ */
+export async function syncEventPostAttachments(
+  postId: string,
+  keepIdsOrdered: string[],
+  newAttachments: Omit<CreateEventPostAttachmentInput, 'post_id'>[]
+): Promise<void> {
+  const { data: current, error: selErr } = await supabase
+    .from('event_post_attachments')
+    .select('id')
+    .eq('post_id', postId);
+  if (selErr) throw selErr;
+  const currentIds = new Set((current ?? []).map((r) => (r as { id: string }).id));
+  for (const kid of keepIdsOrdered) {
+    if (!currentIds.has(kid)) {
+      throw new Error('Invalid attachment id for this post');
+    }
+  }
+  const toDelete = [...currentIds].filter((id) => !keepIdsOrdered.includes(id));
+  if (toDelete.length > 0) {
+    const { error: delErr } = await supabase.from('event_post_attachments').delete().in('id', toDelete);
+    if (delErr) throw delErr;
+  }
+  if (newAttachments.length === 0) return;
+  const baseOrder = keepIdsOrdered.length;
+  const rows = newAttachments.map((a, i) => ({
+    post_id: postId,
+    type: a.type,
+    cloudinary_public_id: a.cloudinary_public_id,
+    thumbnail_url: a.thumbnail_url ?? null,
+    order: baseOrder + i,
+  }));
+  const { error: insErr } = await supabase.from('event_post_attachments').insert(rows);
+  if (insErr) throw insErr;
 }
 
 export async function updateEventPost(

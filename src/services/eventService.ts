@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Event } from '../models/Event';
 import type { EventRow } from '../models/Event';
-import type { CreateEventInput } from '../models/Event';
+import type { CreateEventInput, UpdateEventInput } from '../models/Event';
 import { getEventIdsUserIsAttending } from './attendanceService';
 import { areFriends } from './friendService';
 import { Visibility } from '../models/enums';
@@ -33,17 +33,26 @@ export async function fetchEventsForMap(): Promise<Event[]> {
   return (data as EventRow[]).map((row) => new Event(row));
 }
 
+const EVENT_IDS_IN_CHUNK = 80;
+
 /**
  * Fetches multiple events by ids. Subject to RLS (visibility). Order not guaranteed.
+ * Chunked to avoid PostgREST URL / filter limits with many ids.
  */
 export async function fetchEventsByIds(ids: string[]): Promise<Event[]> {
   if (ids.length === 0) return [];
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .in('id', ids);
-  if (error) throw error;
-  return (data as EventRow[]).map((row) => new Event(row));
+  const unique = [...new Set(ids)];
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += EVENT_IDS_IN_CHUNK) {
+    chunks.push(unique.slice(i, i + EVENT_IDS_IN_CHUNK));
+  }
+  const rows: EventRow[] = [];
+  for (const chunk of chunks) {
+    const { data, error } = await supabase.from('events').select('*').in('id', chunk);
+    if (error) throw error;
+    rows.push(...((data ?? []) as EventRow[]));
+  }
+  return rows.map((row) => new Event(row));
 }
 
 /**
@@ -88,6 +97,29 @@ export async function createEvent(
       cover_aspect_ratio: input.cover_aspect_ratio ?? null,
       address: input.address ?? null,
     })
+    .select()
+    .single();
+  if (error) throw error;
+  return new Event(data as EventRow);
+}
+
+/** Updates an existing event. RLS: only the owner can update. */
+export async function updateEvent(eventId: string, input: UpdateEventInput): Promise<Event> {
+  const { data, error } = await supabase
+    .from('events')
+    .update({
+      name: input.name,
+      date_time: input.date_time,
+      event_type: input.event_type,
+      visibility: input.visibility,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      description: input.description ?? null,
+      cover_cloudinary_public_id: input.cover_cloudinary_public_id ?? null,
+      cover_aspect_ratio: input.cover_aspect_ratio ?? null,
+      address: input.address ?? null,
+    })
+    .eq('id', eventId)
     .select()
     .single();
   if (error) throw error;

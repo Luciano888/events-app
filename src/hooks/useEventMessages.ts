@@ -8,6 +8,14 @@ import {
 } from '../services/eventMessageService';
 import type { EventMessageRow } from '../models/EventMessage';
 
+function getSendErrorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message) return e.message;
+  if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+    return (e as { message: string }).message;
+  }
+  return fallback;
+}
+
 export function useEventMessages(eventId: string | null, eventDateTime: string | null, userId: string | null) {
   const [messages, setMessages] = useState<EventMessageRow[]>([]);
   const [loading, setLoading] = useState(!!eventId);
@@ -22,7 +30,7 @@ export function useEventMessages(eventId: string | null, eventDateTime: string |
     setError(null);
     getEventMessages(eventId)
       .then(setMessages)
-      .catch((e) => setError(e.message ?? 'Failed to load messages'))
+      .catch((e) => setError(getSendErrorMessage(e, 'Failed to load messages')))
       .finally(() => setLoading(false));
   }, [eventId]);
 
@@ -66,7 +74,7 @@ export function useEventMessages(eventId: string | null, eventDateTime: string |
           : await sendEventMessage(eventId, userId, trimmed);
         setMessages((prev) => [...prev, newMsg]);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to send');
+        setError(getSendErrorMessage(e, 'Failed to send'));
         throw e;
       } finally {
         setSending(false);

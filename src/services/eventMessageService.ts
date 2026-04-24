@@ -23,22 +23,46 @@ export async function getEventMessages(eventId: string): Promise<EventMessageRow
   return (data ?? []) as EventMessageRow[];
 }
 
+const EVENT_MESSAGE_IDS_IN_CHUNK = 80;
+
+function messageTimeMs(m: EventMessageRow): number {
+  const t = m.created_at ? new Date(m.created_at).getTime() : 0;
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function mergeLatestMessageMaps(
+  into: Partial<Record<string, EventMessageRow>>,
+  rows: EventMessageRow[]
+) {
+  for (const row of rows) {
+    const prev = into[row.event_id];
+    if (!prev) {
+      into[row.event_id] = row;
+      continue;
+    }
+    if (messageTimeMs(row) > messageTimeMs(prev)) into[row.event_id] = row;
+  }
+}
+
 /**
  * Latest message per event (for inbox). Fetches recent rows and picks first per event_id.
+ * Chunked `.in('event_id', …)` so large attendee lists do not hit URL limits.
  */
 export async function getLastMessagesForEvents(eventIds: string[]): Promise<Partial<Record<string, EventMessageRow>>> {
   if (eventIds.length === 0) return {};
-  const limit = Math.min(500, Math.max(eventIds.length * 25, 50));
-  const { data, error } = await supabase
-    .from('event_messages')
-    .select('*')
-    .in('event_id', eventIds)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
+  const unique = [...new Set(eventIds)];
   const map: Partial<Record<string, EventMessageRow>> = {};
-  for (const row of (data ?? []) as EventMessageRow[]) {
-    if (map[row.event_id] === undefined) map[row.event_id] = row;
+  for (let i = 0; i < unique.length; i += EVENT_MESSAGE_IDS_IN_CHUNK) {
+    const chunk = unique.slice(i, i + EVENT_MESSAGE_IDS_IN_CHUNK);
+    const limit = Math.min(500, Math.max(chunk.length * 25, 50));
+    const { data, error } = await supabase
+      .from('event_messages')
+      .select('*')
+      .in('event_id', chunk)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    mergeLatestMessageMaps(map, (data ?? []) as EventMessageRow[]);
   }
   return map;
 }

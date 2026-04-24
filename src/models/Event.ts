@@ -61,6 +61,9 @@ export interface CreateEventInput {
   address?: string | null;
 }
 
+/** Same fields as create; used to replace event row on update. */
+export type UpdateEventInput = CreateEventInput;
+
 /**
  * Event class (OOP). Wraps row data and provides helpers.
  */

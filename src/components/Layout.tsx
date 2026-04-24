@@ -37,7 +37,8 @@ export function Layout() {
 
   const isEvents = location.pathname === '/';
   const isProfile = location.pathname.startsWith('/profile');
-  const isMessages = location.pathname === '/messages';
+  const isMessages =
+    location.pathname === '/messages' || location.pathname.startsWith('/messages/');
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -158,8 +159,31 @@ export function Layout() {
           </Box>
         </Toolbar>
       </AppBar>
-      <Box component="main" sx={{ flex: 1, p: 2 }}>
-        <Box sx={{ maxWidth: theme.layout.contentMaxWidth, mx: 'auto', width: '100%' }}>
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          py: 2,
+          px: isMessages ? { xs: 1, sm: 2 } : 2,
+          display: isMessages ? 'flex' : 'block',
+          flexDirection: isMessages ? 'column' : undefined,
+          minHeight: isMessages
+            ? { xs: 'calc(100dvh - 56px)', sm: 'calc(100dvh - 64px)' }
+            : undefined,
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: isMessages ? theme.layout.messagesMaxWidth : theme.layout.contentMaxWidth,
+            mx: 'auto',
+            width: '100%',
+            flex: isMessages ? 1 : undefined,
+            minHeight: isMessages ? 0 : undefined,
+            height: isMessages ? '100%' : undefined,
+            display: isMessages ? 'flex' : undefined,
+            flexDirection: isMessages ? 'column' : undefined,
+          }}
+        >
           <Outlet />
         </Box>
       </Box>

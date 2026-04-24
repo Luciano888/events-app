@@ -30,6 +30,7 @@ import {
   Divider,
   Drawer,
   Fab,
+  Tooltip,
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -45,7 +46,6 @@ import InfoIcon from '@mui/icons-material/Info';
 import ArticleIcon from '@mui/icons-material/Article';
 import ChatIcon from '@mui/icons-material/Chat';
 import PushPinIcon from '@mui/icons-material/PushPin';
-import SendIcon from '@mui/icons-material/Send';
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary';
 import CloseIcon from '@mui/icons-material/Close';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -65,12 +65,21 @@ import { useEventPosts } from '../hooks/useEventPosts';
 import { useEventMessages } from '../hooks/useEventMessages';
 import { useEventPostAttachments } from '../hooks/useEventPostAttachments';
 import { useEventPostReactions } from '../hooks/useEventPostReactions';
-import { createEventPost, createEventPostWithAttachments, togglePostPinned, updateEventPost, deleteEventPost } from '../services/eventPostService';
+import {
+  createEventPost,
+  createEventPostWithAttachments,
+  togglePostPinned,
+  updateEventPost,
+  deleteEventPost,
+  syncEventPostAttachments,
+} from '../services/eventPostService';
 import { uploadImage, getThumbnailUrl, isUploadConfigured, getMaxPhotosPerPost } from '../services/cloudinaryService';
 import { buildImageUrl, buildVideoUrl } from '../lib/cloudinary';
 import type { Profile } from '../models/Profile';
 import type { EventPostType } from '../models/EventPost';
 import { getAvatarObjectPosition } from '../utils/avatarPosition';
+import { renderTextWithLinks } from '../utils/renderTextWithLinks';
+import { EventChatTrayPanel } from '../components/EventChatTrayPanel';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -85,8 +94,6 @@ const markerIcon = L.icon({
 
 const QUICK_REACTIONS = ['✅', '👏', '🔥', '💡', '🙌', '🎉'];
 
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-
 function buildGoogleCalendarUrl(event: Event): string {
   const start = new Date(event.dateTime);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
@@ -98,20 +105,6 @@ function buildGoogleCalendarUrl(event: Event): string {
 
 function buildMapsDirectionsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-}
-
-function renderTextWithLinks(text: string) {
-  const parts = text.split(URL_REGEX);
-  return parts.map((part, idx) => {
-    if (part.startsWith('http://') || part.startsWith('https://')) {
-      return (
-        <a key={`${part}-${idx}`} href={part} target="_blank" rel="noopener noreferrer">
-          {part}
-        </a>
-      );
-    }
-    return <span key={`${part}-${idx}`}>{part}</span>;
-  });
 }
 
 export function EventDetailPage() {
@@ -141,8 +134,8 @@ export function EventDetailPage() {
   );
   const locationLabel = useResolvedLocation(event?.latitude ?? 0, event?.longitude ?? 0, event?.address);
 
-  const isCreator = useMemo(() => event && user && event.userId === user.id, [event, user]);
-  const canAccessWallAndChat = isGoing || isCreator;
+  const isCreator = useMemo(() => Boolean(event && user && event.userId === user.id), [event, user]);
+  const canAccessWallAndChat = Boolean(isGoing) || isCreator;
 
   const closeChatDrawer = useCallback(() => {
     setChatDrawerOpen(false);
@@ -165,7 +158,8 @@ export function EventDetailPage() {
 
   const { posts, loading: postsLoading, error: postsError, refetch: refetchPosts } = useEventPosts(canAccessWallAndChat ? id ?? null : null);
   const postIds = useMemo(() => posts.map((p) => p.id), [posts]);
-  const { attachmentsByPost } = useEventPostAttachments(postIds);
+  const [attachmentRefreshKey, setAttachmentRefreshKey] = useState(0);
+  const { attachmentsByPost } = useEventPostAttachments(postIds, attachmentRefreshKey);
   const {
     reactionsByPost,
     error: reactionsError,
@@ -187,25 +181,36 @@ export function EventDetailPage() {
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editingPostContent, setEditingPostContent] = useState('');
+  const [editingPostType, setEditingPostType] = useState<EventPostType>('post');
+  const [editingKeptAttachmentIds, setEditingKeptAttachmentIds] = useState<string[]>([]);
+  const [editingNewImageFiles, setEditingNewImageFiles] = useState<File[]>([]);
+  const [editingNewPreviewUrls, setEditingNewPreviewUrls] = useState<string[]>([]);
+  const [editingPostSaving, setEditingPostSaving] = useState(false);
+  const [editingPostSaveError, setEditingPostSaveError] = useState<string | null>(null);
+  const [pinWallError, setPinWallError] = useState<string | null>(null);
+  const [eventOverflowAnchor, setEventOverflowAnchor] = useState<null | HTMLElement>(null);
   const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [chatImageFile, setChatImageFile] = useState<File | null>(null);
-  const [chatImagePreviewUrl, setChatImagePreviewUrl] = useState<string | null>(null);
-
   const filteredPosts = useMemo(
     () => (wallFilter === 'all' ? posts : posts.filter((p) => p.type === wallFilter)),
     [posts, wallFilter]
   );
 
+  const editingNewFilesFingerprint = useMemo(
+    () => editingNewImageFiles.map((f) => `${f.name}:${f.size}:${f.lastModified}`).join('|'),
+    [editingNewImageFiles]
+  );
+
   useEffect(() => {
-    if (!chatImageFile) {
-      setChatImagePreviewUrl(null);
+    if (editingNewImageFiles.length === 0) {
+      setEditingNewPreviewUrls([]);
       return;
     }
-    const url = URL.createObjectURL(chatImageFile);
-    setChatImagePreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [chatImageFile]);
+    const urls = editingNewImageFiles.map((f) => URL.createObjectURL(f));
+    setEditingNewPreviewUrls(urls);
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [editingNewFilesFingerprint, editingNewImageFiles]);
 
   const authorIds = useMemo(() => {
     const fromPosts = posts.map((p) => p.user_id);
@@ -323,6 +328,7 @@ export function EventDetailPage() {
   };
 
   const openPostMenu = (e: React.MouseEvent<HTMLElement>, postId: string) => {
+    setPinWallError(null);
     setPostActionAnchor(e.currentTarget);
     setActivePostId(postId);
   };
@@ -334,29 +340,113 @@ export function EventDetailPage() {
 
   const handleTogglePinned = async () => {
     if (!activePostId || !isCreator) return;
+    setPinWallError(null);
     try {
       await togglePostPinned(activePostId);
       refetchPosts();
+    } catch (e) {
+      setPinWallError(e instanceof Error ? e.message : t('events.pinToggleFailed'));
     } finally {
       closePostMenu();
     }
+  };
+
+  const handleCancelEditPost = () => {
+    setEditingPostId(null);
+    setEditingPostContent('');
+    setEditingPostType('post');
+    setEditingKeptAttachmentIds([]);
+    setEditingNewImageFiles([]);
+    setEditingPostSaveError(null);
+    setEditingPostSaving(false);
   };
 
   const handleStartEditPost = () => {
     if (!activePostId || !user) return;
     const post = posts.find((p) => p.id === activePostId);
     if (!post || post.user_id !== user.id) return;
+    const sorted = (attachmentsByPost[post.id] ?? [])
+      .slice()
+      .sort((a, b) => a.order - b.order);
     setEditingPostId(post.id);
     setEditingPostContent(post.content ?? '');
+    setEditingPostType(post.type);
+    setEditingKeptAttachmentIds(sorted.map((a) => a.id));
+    setEditingNewImageFiles([]);
+    setEditingPostSaveError(null);
     closePostMenu();
   };
 
+  const handleEditPostImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const max = getMaxPhotosPerPost();
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    setEditingNewImageFiles((prev) => {
+      const room = max - editingKeptAttachmentIds.length - prev.length;
+      const add = images.slice(0, Math.max(0, room));
+      return [...prev, ...add];
+    });
+    e.target.value = '';
+  };
+
+  const removeEditingKeptAttachment = (attachmentId: string) => {
+    setEditingKeptAttachmentIds((ids) => ids.filter((id) => id !== attachmentId));
+  };
+
+  const removeEditingNewImage = (index: number) => {
+    setEditingNewImageFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveEditPost = async () => {
-    if (!editingPostId) return;
-    await updateEventPost(editingPostId, { content: editingPostContent });
-    setEditingPostId(null);
-    setEditingPostContent('');
-    refetchPosts();
+    if (!editingPostId || !user) return;
+    const max = getMaxPhotosPerPost();
+    const mediaCount = editingKeptAttachmentIds.length + editingNewImageFiles.length;
+    if (!editingPostContent.trim() && mediaCount === 0) {
+      setEditingPostSaveError(t('events.editPostNeedsContentOrMedia'));
+      return;
+    }
+    if (mediaCount > max) {
+      setEditingPostSaveError(t('events.photoLimitExceeded', { count: max }));
+      return;
+    }
+    if (editingNewImageFiles.length > 0 && !isUploadConfigured()) {
+      setEditingPostSaveError(t('events.addPhotosSetup'));
+      return;
+    }
+
+    let nextType: EventPostType = editingPostType;
+    if (!isCreator && nextType === 'announcement') {
+      nextType = 'post';
+    }
+
+    setEditingPostSaving(true);
+    setEditingPostSaveError(null);
+    try {
+      await updateEventPost(editingPostId, {
+        content: editingPostContent.trim() || null,
+        type: nextType,
+      });
+
+      let newRows: { type: 'image'; cloudinary_public_id: string; thumbnail_url: string; order: number }[] = [];
+      if (editingNewImageFiles.length > 0) {
+        const uploaded = await Promise.all(editingNewImageFiles.map((file) => uploadImage(file)));
+        newRows = uploaded.map((u, i) => ({
+          type: 'image' as const,
+          cloudinary_public_id: u.public_id,
+          thumbnail_url: getThumbnailUrl(u.public_id, 'image'),
+          order: editingKeptAttachmentIds.length + i,
+        }));
+      }
+      await syncEventPostAttachments(editingPostId, editingKeptAttachmentIds, newRows);
+
+      handleCancelEditPost();
+      refetchPosts();
+      setAttachmentRefreshKey((k) => k + 1);
+    } catch (e) {
+      setEditingPostSaveError(e instanceof Error ? e.message : t('events.failedToSavePost'));
+    } finally {
+      setEditingPostSaving(false);
+    }
   };
 
   const handleRequestDeletePost = () => {
@@ -382,25 +472,6 @@ export function EventDetailPage() {
 
   const removePostImage = (index: number) => {
     setPostImageFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSendMessage = async () => {
-    if (!chatInput.trim() && !chatImageFile) return;
-    try {
-      if (chatImageFile && isUploadConfigured()) {
-        const uploaded = await uploadImage(chatImageFile);
-        await sendMessage(chatInput.trim(), {
-          imageCloudinaryPublicId: uploaded.public_id,
-          imageThumbnailUrl: getThumbnailUrl(uploaded.public_id, 'image'),
-        });
-      } else {
-        await sendMessage(chatInput.trim());
-      }
-      setChatInput('');
-      setChatImageFile(null);
-    } catch {
-      // error already in hook
-    }
   };
 
   if (loading) return <Skeleton variant="rounded" height={300} />;
@@ -701,6 +772,11 @@ export function EventDetailPage() {
         </Paper>
       )}
       {postsError && <Alert severity="error">{postsError}</Alert>}
+      {pinWallError && (
+        <Alert severity="error" onClose={() => setPinWallError(null)}>
+          {pinWallError}
+        </Alert>
+      )}
       {reactionsError && <Alert severity="error">{reactionsError}</Alert>}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
         <Chip label={t('events.filterAll')} size="small" variant={wallFilter === 'all' ? 'filled' : 'outlined'} onClick={() => setWallFilter('all')} />
@@ -745,18 +821,136 @@ export function EventDetailPage() {
                         minRows={2}
                         value={editingPostContent}
                         onChange={(e) => setEditingPostContent(e.target.value)}
+                        placeholder={t('events.newPostPlaceholder')}
                       />
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
+                        <Chip
+                          label={t('events.post')}
+                          size="small"
+                          variant={editingPostType === 'post' ? 'filled' : 'outlined'}
+                          onClick={() => setEditingPostType('post')}
+                        />
+                        <Chip
+                          label={t('events.question')}
+                          size="small"
+                          variant={editingPostType === 'question' ? 'filled' : 'outlined'}
+                          onClick={() => setEditingPostType('question')}
+                        />
+                        {isCreator ? (
+                          <Chip
+                            label={t('events.announcement')}
+                            size="small"
+                            variant={editingPostType === 'announcement' ? 'filled' : 'outlined'}
+                            color="primary"
+                            onClick={() => setEditingPostType('announcement')}
+                          />
+                        ) : null}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        {t('events.editPostMediaHint', { count: getMaxPhotosPerPost() })}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5, alignItems: 'flex-start' }}>
+                        {editingKeptAttachmentIds.map((attId) => {
+                          const att = (attachmentsByPost[p.id] ?? []).find((a) => a.id === attId);
+                          if (!att) return null;
+                          const thumbUrl = att.thumbnail_url || getThumbnailUrl(att.cloudinary_public_id, att.type);
+                          const highQualityUrl =
+                            att.type === 'image' ? buildImageUrl(att.cloudinary_public_id) : buildVideoUrl(att.cloudinary_public_id);
+                          const mediumUrl =
+                            att.type === 'image' ? buildImageUrl(att.cloudinary_public_id, { width: 1200 }) : undefined;
+                          return (
+                            <Box key={attId} sx={{ position: 'relative' }}>
+                              <Box
+                                component="img"
+                                src={thumbUrl}
+                                alt=""
+                                onClick={() => {
+                                  setLightboxImageError(false);
+                                  setLightboxMediumFailed(false);
+                                  setLightboxAttachment({
+                                    url: highQualityUrl,
+                                    mediumUrl,
+                                    thumbUrl: att.type === 'image' ? thumbUrl : undefined,
+                                    type: att.type,
+                                  });
+                                }}
+                                sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 1, cursor: 'pointer', display: 'block' }}
+                              />
+                              <IconButton
+                                size="small"
+                                sx={{ position: 'absolute', top: -6, right: -6, bgcolor: 'background.paper' }}
+                                onClick={() => removeEditingKeptAttachment(attId)}
+                                aria-label={t('events.removeAttachment')}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          );
+                        })}
+                        {editingNewImageFiles.map((file, i) => (
+                          <Box key={`${file.name}-${file.size}-${i}`} sx={{ position: 'relative' }}>
+                            <Box
+                              component="img"
+                              src={editingNewPreviewUrls[i] ?? ''}
+                              alt=""
+                              sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 1, display: 'block' }}
+                            />
+                            <IconButton
+                              size="small"
+                              sx={{ position: 'absolute', top: -6, right: -6, bgcolor: 'background.paper' }}
+                              onClick={() => removeEditingNewImage(i)}
+                              aria-label={t('events.removeNewPhoto')}
+                            >
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                      </Box>
+                      {isUploadConfigured() &&
+                        editingKeptAttachmentIds.length + editingNewImageFiles.length < getMaxPhotosPerPost() && (
+                          <Box sx={{ mt: 1 }}>
+                            <input
+                              accept="image/*"
+                              type="file"
+                              multiple
+                              id={`edit-post-photos-${p.id}`}
+                              style={{ display: 'none' }}
+                              onChange={handleEditPostImageSelect}
+                            />
+                            <label htmlFor={`edit-post-photos-${p.id}`}>
+                              <Button component="span" size="small" variant="outlined" startIcon={<PhotoLibraryIcon />}>
+                                {t('events.addPhotos', { count: getMaxPhotosPerPost() })}
+                              </Button>
+                            </label>
+                          </Box>
+                        )}
+                      {editingPostSaveError && (
+                        <Alert severity="error" sx={{ mt: 1 }} onClose={() => setEditingPostSaveError(null)}>
+                          {editingPostSaveError}
+                        </Alert>
+                      )}
                       <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                        <Button size="small" variant="contained" onClick={() => { void handleSaveEditPost(); }}>
-                          {t('events.saveEdit')}
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={editingPostSaving}
+                          onClick={() => {
+                            void handleSaveEditPost();
+                          }}
+                        >
+                          {editingPostSaving ? t('events.savingEdit') : t('events.saveEdit')}
                         </Button>
-                        <Button size="small" onClick={() => { setEditingPostId(null); setEditingPostContent(''); }}>
+                        <Button size="small" disabled={editingPostSaving} onClick={handleCancelEditPost}>
                           {t('events.cancelEdit')}
                         </Button>
                       </Box>
                     </Box>
                   ) : (
-                    p.content && <Typography variant="body1" sx={{ mt: 0.5 }}>{p.content}</Typography>
+                    p.content && (
+                      <Typography variant="body1" sx={{ mt: 0.5 }}>
+                        {renderTextWithLinks(p.content)}
+                      </Typography>
+                    )
                   )}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1 }}>
                     {(reactionsByPost[p.id] ?? []).map((reaction) => (
@@ -780,7 +974,7 @@ export function EventDetailPage() {
                         />
                       ))}
                   </Box>
-                  {attachmentsByPost[p.id] && attachmentsByPost[p.id].length > 0 && (
+                  {editingPostId !== p.id && attachmentsByPost[p.id] && attachmentsByPost[p.id].length > 0 && (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
                       {attachmentsByPost[p.id].map((att) => {
                         const thumbUrl = att.thumbnail_url || getThumbnailUrl(att.cloudinary_public_id, att.type);
@@ -946,121 +1140,38 @@ export function EventDetailPage() {
     </Stack>
   );
 
-  const eventChatContent = !canAccessWallAndChat ? (
-    <Stack spacing={2}>
-      <Alert severity="info">{t('events.chatLocked')}</Alert>
-      <Button variant="contained" onClick={focusRsvpSection} startIcon={<CheckCircleIcon />}>
-        {t('events.goToRsvp')}
-      </Button>
-    </Stack>
-  ) : (
-    <Stack
-      spacing={1}
-      sx={{
-        flex: 1,
-        minHeight: 200,
-        maxHeight: { xs: 'min(58vh, 480px)', sm: 'calc(100vh - 200px)' },
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
+  const eventChatContent = (
+    <EventChatTrayPanel
+      canAccessWallAndChat={canAccessWallAndChat}
+      chatTimeOpen={chatOpen}
+      messages={messages}
+      messagesLoading={messagesLoading}
+      messagesError={messagesError}
+      sending={sending}
+      sendMessage={sendMessage}
+      profiles={profiles}
+      currentUserId={user?.id ?? null}
+      locale={i18n.language}
+      lockedSlot={
+        <>
+          <Alert severity="info">{t('events.chatLocked')}</Alert>
+          <Button variant="contained" onClick={focusRsvpSection} startIcon={<CheckCircleIcon />}>
+            {t('events.goToRsvp')}
+          </Button>
+        </>
+      }
+      onImageClick={(payload) => {
+        setLightboxImageError(false);
+        setLightboxMediumFailed(false);
+        setLightboxAttachment(payload);
       }}
-    >
-      {!chatOpen && (
-        <Alert severity="info">
-          {t('events.chatClosed')}
-        </Alert>
-      )}
-      {messagesError && <Alert severity="error">{messagesError}</Alert>}
-      <Paper variant="outlined" sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1 }}>
-        {messagesLoading ? (
-          <Skeleton variant="rounded" height={200} />
-        ) : messages.length === 0 ? (
-          <Typography color="text.secondary">{chatOpen ? t('events.noMessagesOpen') : t('events.noMessages')}</Typography>
-        ) : (
-          messages.map((m) => (
-            <Box key={m.id} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-start' }}>
-              <Avatar src={profiles[m.user_id]?.avatar_url ?? undefined} sx={{ width: 28, height: 28, '& .MuiAvatar-img': { objectPosition: getAvatarObjectPosition(profiles[m.user_id]) } }}>
-                {(profiles[m.user_id]?.display_name ?? m.user_id)?.[0]?.toUpperCase() ?? '?'}
-              </Avatar>
-              <Box>
-                <Typography component={Link} to={`/profile/${m.user_id}`} variant="caption" sx={{ fontWeight: 600, color: 'inherit', textDecoration: 'none' }}>
-                  {profiles[m.user_id]?.display_name ?? t('events.user')}
-                </Typography>
-                <Typography variant="body2" display="block">{renderTextWithLinks(m.body)}</Typography>
-                {m.image_cloudinary_public_id && (
-                  <Box
-                    component="img"
-                    src={m.image_thumbnail_url || getThumbnailUrl(m.image_cloudinary_public_id, 'image')}
-                    alt=""
-                    onClick={() => {
-                      setLightboxImageError(false);
-                      setLightboxMediumFailed(false);
-                      setLightboxAttachment({
-                        url: buildImageUrl(m.image_cloudinary_public_id as string),
-                        mediumUrl: buildImageUrl(m.image_cloudinary_public_id as string, { width: 1200 }),
-                        thumbUrl: m.image_thumbnail_url || getThumbnailUrl(m.image_cloudinary_public_id as string, 'image'),
-                        type: 'image',
-                      });
-                    }}
-                    sx={{ mt: 0.5, width: 120, height: 120, objectFit: 'cover', borderRadius: 1, cursor: 'pointer' }}
-                  />
-                )}
-                <Typography variant="caption" color="text.secondary">{m.created_at ? new Date(m.created_at).toLocaleTimeString() : ''}</Typography>
-              </Box>
-            </Box>
-          ))
-        )}
-      </Paper>
-      {chatOpen && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-          {isUploadConfigured() && (
-            <>
-              <input
-                accept="image/*"
-                type="file"
-                id="chat-photo"
-                style={{ display: 'none' }}
-                onChange={(e) => setChatImageFile(e.target.files?.[0] ?? null)}
-              />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <label htmlFor="chat-photo">
-                  <Button component="span" size="small" startIcon={<PhotoLibraryIcon />}>
-                    {t('events.addImage')}
-                  </Button>
-                </label>
-                {chatImageFile && chatImagePreviewUrl && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Box component="img" src={chatImagePreviewUrl} alt="" sx={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 1 }} />
-                    <IconButton size="small" onClick={() => setChatImageFile(null)}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                )}
-              </Box>
-            </>
-          )}
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder={t('events.messagePlaceholder')}
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-          />
-          <IconButton color="primary" onClick={handleSendMessage} disabled={sending || (!chatInput.trim() && !chatImageFile)}>
-            <SendIcon />
-          </IconButton>
-          </Box>
-        </Box>
-      )}
-    </Stack>
+    />
   );
 
   return (
     <Box>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>{t('events.back')}</Button>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 2 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mb: 2, width: '100%' }}>
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
@@ -1069,17 +1180,81 @@ export function EventDetailPage() {
           <Tab label={t('events.info')} icon={<InfoIcon />} iconPosition="start" />
           <Tab label={t('events.wall')} icon={<ArticleIcon />} iconPosition="start" />
         </Tabs>
-        {user && canAccessWallAndChat && (
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<ChatIcon />}
-            onClick={() => setChatDrawerOpen(true)}
-            sx={{ flexShrink: 0 }}
-          >
-            {t('events.openChat')}
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+          {user && canAccessWallAndChat && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ChatIcon />}
+              onClick={() => setChatDrawerOpen(true)}
+              sx={{ flexShrink: 0 }}
+            >
+              {t('events.openChat')}
+            </Button>
+          )}
+          {isCreator && event && (
+            <>
+              <Tooltip title={t('events.eventOverflowMenu')}>
+                <IconButton
+                  color="primary"
+                  size="medium"
+                  aria-label={t('events.eventOverflowMenu')}
+                  aria-haspopup="true"
+                  aria-expanded={Boolean(eventOverflowAnchor)}
+                  onClick={(e) => setEventOverflowAnchor(e.currentTarget)}
+                  sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+              </Tooltip>
+              <Menu
+                anchorEl={eventOverflowAnchor}
+                open={Boolean(eventOverflowAnchor)}
+                onClose={() => setEventOverflowAnchor(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <MenuItem
+                  component={Link}
+                  to={`/event/${event.id}/edit`}
+                  onClick={() => setEventOverflowAnchor(null)}
+                >
+                  <EditIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                  {t('events.editEvent')}
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setEventOverflowAnchor(null);
+                    void handleShare();
+                  }}
+                >
+                  <ShareIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                  {t('events.share')}
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={buildGoogleCalendarUrl(event)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setEventOverflowAnchor(null)}
+                >
+                  <EventIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                  {t('events.addToCalendar')}
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={buildMapsDirectionsUrl(event.latitude, event.longitude)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setEventOverflowAnchor(null)}
+                >
+                  <DirectionsIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                  {t('events.getDirections')}
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </Box>
       </Box>
       {tab === 0 && infoPanel}
       {tab === 1 && wallPanel}
@@ -1091,13 +1266,19 @@ export function EventDetailPage() {
         PaperProps={{
           sx: isMobileDrawer
             ? {
-                height: '88vh',
-                maxHeight: '92vh',
+                height: 'min(92dvh, 100%)',
+                maxHeight: '96dvh',
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,
                 boxSizing: 'border-box',
               }
-            : { width: 440, maxWidth: '100vw', boxSizing: 'border-box' },
+            : {
+                width: { xs: '100%', sm: 440 },
+                maxWidth: '100vw',
+                height: '100dvh',
+                maxHeight: '100dvh',
+                boxSizing: 'border-box',
+              },
         }}
       >
         <Box
@@ -1105,10 +1286,11 @@ export function EventDetailPage() {
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
-            p: 2,
-            pt: isMobileDrawer ? 1 : 2,
-            boxSizing: 'border-box',
             minHeight: 0,
+            boxSizing: 'border-box',
+            px: 2,
+            pt: isMobileDrawer ? 1 : 2,
+            pb: 0,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 1, flexShrink: 0 }}>

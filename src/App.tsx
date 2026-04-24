@@ -3,13 +3,15 @@ import { Box, CircularProgress } from '@mui/material';
 import { Layout } from './components/Layout';
 import { EventsPage } from './pages/EventsPage';
 import { CreateEventPage } from './pages/CreateEventPage';
+import { EditEventPage } from './pages/EditEventPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { MyProfilePage } from './pages/MyProfilePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { FriendRequestsPage } from './pages/FriendRequestsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignUpPage } from './pages/SignUpPage';
-import { MessagesPage } from './pages/MessagesPage';
+import { MessagesLayout, MessagesIndexPanel } from './pages/MessagesLayout';
+import { EventMessagesThreadPage } from './pages/EventMessagesThreadPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { useAuth } from './hooks/useAuth';
@@ -27,6 +29,14 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<EventsPage />} />
+          <Route
+            path="event/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditEventPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="event/:id" element={<EventDetailPage />} />
           <Route path="map" element={<Navigate to="/?view=map" replace />} />
           <Route
@@ -44,7 +54,10 @@ export default function App() {
           <Route path="profile/me" element={<ProtectedRoute><MyProfilePage /></ProtectedRoute>} />
           <Route path="profile/:userId" element={<ProfilePage />} />
           <Route path="friends" element={<ProtectedRoute><FriendRequestsPage /></ProtectedRoute>} />
-          <Route path="messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+          <Route path="messages" element={<ProtectedRoute><MessagesLayout /></ProtectedRoute>}>
+            <Route index element={<MessagesIndexPanel />} />
+            <Route path=":eventId" element={<EventMessagesThreadPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

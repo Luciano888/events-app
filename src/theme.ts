@@ -2,10 +2,10 @@ import { createTheme } from '@mui/material/styles';
 
 declare module '@mui/material/styles' {
   interface Theme {
-    layout: { contentMaxWidth: number };
+    layout: { contentMaxWidth: number; messagesMaxWidth: number };
   }
   interface ThemeOptions {
-    layout?: { contentMaxWidth: number };
+    layout?: { contentMaxWidth: number; messagesMaxWidth?: number };
   }
 }
 
@@ -15,5 +15,5 @@ export const theme = createTheme({
     secondary: { main: '#9c27b0' },
   },
   shape: { borderRadius: 8 },
-  layout: { contentMaxWidth: 720 },
+  layout: { contentMaxWidth: 720, messagesMaxWidth: 1180 },
 });
